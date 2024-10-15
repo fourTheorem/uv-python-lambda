@@ -1,7 +1,9 @@
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Stack } from 'aws-cdk-lib';
 import {
   Architecture,
+  type CfnFunction,
   // biome-ignore lint/suspicious/noShadowRestrictedNames: shadows 'function'
   Function,
   type FunctionOptions,
@@ -57,16 +59,14 @@ export class PythonFunction extends Function {
     const {
       workspacePackage,
       handler = 'handler',
+      index = 'index.py',
       runtime = Runtime.PYTHON_3_12,
     } = props;
 
     const architecture = props.architecture ?? Architecture.ARM_64;
     const rootDir = path.resolve(props.rootDir);
 
-    let resolvedHandler = handler;
-    if (workspacePackage) {
-      resolvedHandler = `${workspacePackage.replace(/-/g, '_')}.${handler}`;
-    }
+    const resolvedHandler = `${index.slice(0, -3)}.${handler}`.replace(/\//g, '.');
 
     if (runtime.family !== RuntimeFamily.PYTHON) {
       throw new Error('Only Python runtimes are supported');
@@ -80,12 +80,40 @@ export class PythonFunction extends Function {
       workspacePackage,
       ...props.bundling,
     });
+
+    const environment = props.environment ?? {};
+
     super(scope, id, {
       ...props,
+      environment,
       architecture,
       runtime,
       code,
       handler: resolvedHandler,
     });
+
+    const assetPath = ((this.node.defaultChild) as CfnFunction).getMetadata('aws:asset:path');
+    const codePath = path.join(process.env.CDK_OUTDIR as string, assetPath);
+
+    const pythonPaths = getPthFilePaths(codePath);
+
+    if (pythonPaths.length > 0) {
+      let pythonPathValue = environment.PYTHONPATH;
+      const addedPaths = pythonPaths.join(':');
+      pythonPathValue = pythonPathValue ? `${pythonPathValue}:${addedPaths}` : addedPaths;
+      this.addEnvironment('PYTHONPATH', pythonPathValue);
+    }
   }
+}
+
+function getPthFilePaths(basePath: string): string[] {
+  const pthFiles = fs.readdirSync(basePath).filter(file => file.endsWith('.pth'));
+  const pythonPaths: string[] = [];
+  for (const pthFile of pthFiles) {
+    const filePath = path.join(basePath, pthFile);
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const dirs = content.split('\n').filter(line => line.trim() !== '');
+    pythonPaths.push(...dirs.map(dir => path.join('/var/task', path.relative('/asset-output', dir))));
+  }
+  return pythonPaths;
 }

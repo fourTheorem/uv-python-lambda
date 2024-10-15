@@ -23,26 +23,6 @@ export const DEFAULT_ASSET_EXCLUDES = [
   '.git/',
 ];
 
-const userCustomizePy = `
-import sys
-import os
-from pathlib import Path
-
-base_path = Path(__file__).parent
-
-for pth_file in base_path.glob('*.pth'):
-    print('Adding', pth_file, base_path)
-    with open(pth_file, 'r') as f:
-        for line in f:
-            module_path_str = str(base_path / line.strip())
-            print('...', module_path_str)
-            if module_path_str not in sys.path:
-                sys.path.insert(0, module_path_str)
-
-print('sys.path', sys.path)
-    
-`;
-
 interface BundlingCommandOptions {
   readonly rootDir: string;
   readonly workspacePackage?: string;
@@ -164,21 +144,16 @@ export class Bundling {
       ...options.commandHooks?.beforeBundling(options.inputDir, options.outputDir) ?? [],
     );
     commands.push(...[
-      `while [ -e ${options.inputDir}/wait.txt ]; do sleep 2; echo Waiting; done`,
       `rsync -rLv ${excludeArgs.join(' ')} ${options.inputDir}/ ${options.outputDir}`,
       `cd ${options.outputDir}`, // uv pip install needs to be run from here for editable deps to relative paths to be resolved
       `VIRTUAL_ENV=/tmp/venv uv sync ${uvCommonArgs} ${uvPackageArgs} --compile-bytecode --no-dev --frozen --no-editable --link-mode=copy`,
       `VIRTUAL_ENV=/tmp/venv uv export ${uvCommonArgs} ${uvPackageArgs} --no-dev --frozen --no-editable > ${reqsFile}`,
       `uv pip install -r ${reqsFile} --target ${options.outputDir} --reinstall --compile-bytecode --link-mode=copy --editable $(grep -e "^\./" ${reqsFile})`,
-      `sed -i 's|${options.outputDir}/|.|g' ${options.outputDir}/*.pth`,
       `rm -rf ${options.outputDir}/.venv`,
-      `echo ${Buffer.from(userCustomizePy).toString('base64')} | base64 -d > ${options.outputDir}/usercustomize.py`,
-      `while [ -e ${options.inputDir}/wait2.txt ]; do sleep 2; echo Waiting; done`,
     ]);
     commands.push(
       ...options.commandHooks?.afterBundling(options.inputDir, options.outputDir) ?? [],
     );
-    console.log('Bundling commands', { options, commands });
 
     return commands;
   }
