@@ -1,9 +1,9 @@
+import * as path from 'node:path';
 import {
   AssetHashType,
   AssetStaging,
   type BundlingFileAccess,
   DockerImage,
-  type DockerRunOptions,
   type DockerVolume,
 } from 'aws-cdk-lib';
 import {
@@ -12,23 +12,66 @@ import {
   Code,
   type Runtime,
 } from 'aws-cdk-lib/aws-lambda';
+import type { BundlingOptions, ICommandHooks } from './types';
 
 export const HASHABLE_DEPENDENCIES_EXCLUDE = ['*.pyc'];
 
+export const DEFAULT_ASSET_EXCLUDES = [
+  '.venv/',
+  'node_modules/',
+  'cdk.out/',
+  '.git/',
+];
+
+const userCustomizePy = `
+import sys
+import os
+from pathlib import Path
+
+base_path = Path(__file__).parent
+
+for pth_file in base_path.glob('*.pth'):
+    print('Adding', pth_file, base_path)
+    with open(pth_file, 'r') as f:
+        for line in f:
+            module_path_str = str(base_path / line.strip())
+            print('...', module_path_str)
+            if module_path_str not in sys.path:
+                sys.path.insert(0, module_path_str)
+
+print('sys.path', sys.path)
+    
+`;
+
 interface BundlingCommandOptions {
-  readonly entry: string;
+  readonly rootDir: string;
+  readonly workspacePackage?: string;
   readonly inputDir: string;
   readonly outputDir: string;
+  readonly assetExcludes: string[];
+  readonly commandHooks?: ICommandHooks;
 }
 
-export interface BundlingProps extends DockerRunOptions {
-  readonly entry: string;
+export interface BundlingProps extends BundlingOptions {
+  /**
+   * uv project root (workspace root)
+   */
+  readonly rootDir: string;
+
+  /**
+   * uv package to use for the Lambda Function
+   */
+  readonly workspacePackage?: string;
+
+  /**
+   * Lambda runtime (must be one of the Python runtimes)
+   */
   readonly runtime: Runtime;
 
   /**
    * Lambda CPU architecture
    *
-   * @default Architecture.X86_64
+   * @default Architecture.ARM_64
    */
   readonly architecture?: Architecture;
 
@@ -38,29 +81,6 @@ export interface BundlingProps extends DockerRunOptions {
    * @default false
    */
   readonly skip?: boolean;
-
-  /**
-   * Docker image to use for bundling.
-   *
-   * @default - Default bundling image from the sam/build-python set
-   */
-  readonly image?: DockerImage;
-
-  /**
-   * Optional build arguments to pass to the bundling container when the default
-   * image is used.
-   *
-   * @default - {}
-   */
-  readonly buildArgs?: { [key: string]: string };
-
-  /**
-   * Specifies how to copy files to/from the docker container. BIND_MOUNT is generally faster
-   * but VOLUME_MOUNT works with remote Docker contexts.
-   *
-   * @default - BundlingFileAccess.BIND_MOUNT
-   */
-  readonly bundlingFileAccess?: BundlingFileAccess;
 }
 
 /**
@@ -68,7 +88,7 @@ export interface BundlingProps extends DockerRunOptions {
  */
 export class Bundling {
   public static bundle(options: BundlingProps): AssetCode {
-    return Code.fromAsset(options.entry, {
+    return Code.fromAsset(options.rootDir, {
       assetHashType: AssetHashType.SOURCE,
       exclude: HASHABLE_DEPENDENCIES_EXCLUDE,
       bundling: options.skip ? undefined : new Bundling(options),
@@ -88,17 +108,28 @@ export class Bundling {
   public readonly bundlingFileAccess?: BundlingFileAccess | undefined;
 
   constructor(props: BundlingProps) {
-    const { entry, image, runtime, architecture = Architecture.X86_64 } = props;
+    const {
+      rootDir,
+      workspacePackage,
+      image,
+      runtime,
+      commandHooks,
+      assetExcludes = DEFAULT_ASSET_EXCLUDES,
+      architecture = Architecture.ARM_64,
+    } = props;
 
     const bundlingCommands = this.createBundlingCommands({
-      entry,
+      rootDir,
+      workspacePackage,
+      assetExcludes,
+      commandHooks,
       inputDir: AssetStaging.BUNDLING_INPUT_DIR,
       outputDir: AssetStaging.BUNDLING_OUTPUT_DIR,
     });
 
     this.image =
       image ??
-      DockerImage.fromBuild(__dirname, {
+      DockerImage.fromBuild(path.resolve(__dirname, '..', 'resources'), {
         buildArgs: {
           ...props.buildArgs,
           IMAGE: runtime.bundlingImage.image,
@@ -123,6 +154,32 @@ export class Bundling {
   }
 
   private createBundlingCommands(options: BundlingCommandOptions): string[] {
-    return [`rsync -rLv ${options.inputDir}/ ${options.outputDir}`, 'uv sync'];
+    const excludeArgs = options.assetExcludes.map((exclude) => `--exclude="${exclude}"`);
+    const workspacePackage = options.workspacePackage;
+    const uvCommonArgs = `--directory ${options.outputDir}`;
+    const uvPackageArgs = workspacePackage ? `--package ${workspacePackage}` : '';
+    const reqsFile = `/tmp/requirements${workspacePackage || ''}.txt`;
+    const commands = [];
+    commands.push(
+      ...options.commandHooks?.beforeBundling(options.inputDir, options.outputDir) ?? [],
+    );
+    commands.push(...[
+      `while [ -e ${options.inputDir}/wait.txt ]; do sleep 2; echo Waiting; done`,
+      `rsync -rLv ${excludeArgs.join(' ')} ${options.inputDir}/ ${options.outputDir}`,
+      `cd ${options.outputDir}`, // uv pip install needs to be run from here for editable deps to relative paths to be resolved
+      `VIRTUAL_ENV=/tmp/venv uv sync ${uvCommonArgs} ${uvPackageArgs} --compile-bytecode --no-dev --frozen --no-editable --link-mode=copy`,
+      `VIRTUAL_ENV=/tmp/venv uv export ${uvCommonArgs} ${uvPackageArgs} --no-dev --frozen --no-editable > ${reqsFile}`,
+      `uv pip install -r ${reqsFile} --target ${options.outputDir} --reinstall --compile-bytecode --link-mode=copy --editable $(grep -e "^\./" ${reqsFile})`,
+      `sed -i 's|${options.outputDir}/|.|g' ${options.outputDir}/*.pth`,
+      `rm -rf ${options.outputDir}/.venv`,
+      `echo ${Buffer.from(userCustomizePy).toString('base64')} | base64 -d > ${options.outputDir}/usercustomize.py`,
+      `while [ -e ${options.inputDir}/wait2.txt ]; do sleep 2; echo Waiting; done`,
+    ]);
+    commands.push(
+      ...options.commandHooks?.afterBundling(options.inputDir, options.outputDir) ?? [],
+    );
+    console.log('Bundling commands', { options, commands });
+
+    return commands;
   }
 }

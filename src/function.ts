@@ -1,8 +1,8 @@
-import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { type BundlingOptions, Stack } from 'aws-cdk-lib';
+import { Stack } from 'aws-cdk-lib';
 import {
-  // biome-ignore lint/suspicious/noShadowRestrictedNames: <explanation>
+  Architecture,
+  // biome-ignore lint/suspicious/noShadowRestrictedNames: shadows 'function'
   Function,
   type FunctionOptions,
   Runtime,
@@ -11,12 +11,19 @@ import {
 
 import type { Construct } from 'constructs';
 import { Bundling } from './bundling';
+import type { BundlingOptions } from './types';
 
 export interface PythonFunctionProps extends FunctionOptions {
   /**
-   * Path where index and function dependencies can be found
+   * UV project root directory (workspace root)
    */
-  readonly entry: string;
+  readonly rootDir: string;
+
+  /**
+   * Optional UV project workspace, used to specify a specific package to be used
+   * as a Lambda Function entry.
+   */
+  readonly workspacePackage?: string;
 
   /**
    * The runtime
@@ -26,7 +33,7 @@ export interface PythonFunctionProps extends FunctionOptions {
   readonly runtime?: Runtime;
 
   /**
-   * The path to the index file containing the handler. Relative to #entry
+   * The path to the index file with the project or (or workspace, if specified) containing the handler.
    *
    * @default index.py
    */
@@ -48,33 +55,34 @@ export interface PythonFunctionProps extends FunctionOptions {
 export class PythonFunction extends Function {
   constructor(scope: Construct, id: string, props: PythonFunctionProps) {
     const {
-      index = 'index.py',
+      workspacePackage,
       handler = 'handler',
       runtime = Runtime.PYTHON_3_12,
     } = props;
 
-    const entry = path.resolve(props.entry);
-    const resolvedIndex = path.resolve(entry, index);
-    if (!fs.existsSync(resolvedIndex)) {
-      throw new Error(`Cannot find index file at ${resolvedIndex}`);
-    }
+    const architecture = props.architecture ?? Architecture.ARM_64;
+    const rootDir = path.resolve(props.rootDir);
 
-    const moduleName = path.parse(index).name;
-    const resolvedHandler = `${moduleName}.${handler}`.replace(/\//g, '.');
+    let resolvedHandler = handler;
+    if (workspacePackage) {
+      resolvedHandler = `${workspacePackage.replace(/-/g, '_')}.${handler}`;
+    }
 
     if (runtime.family !== RuntimeFamily.PYTHON) {
       throw new Error('Only Python runtimes are supported');
     }
 
     const code = Bundling.bundle({
-      entry,
+      rootDir,
       runtime,
       skip: !Stack.of(scope).bundlingRequired,
-      architecture: props.architecture,
+      architecture,
+      workspacePackage,
       ...props.bundling,
     });
     super(scope, id, {
       ...props,
+      architecture,
       runtime,
       code,
       handler: resolvedHandler,

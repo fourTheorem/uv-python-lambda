@@ -1124,6 +1124,313 @@ The timeout configured for this lambda.
 
 ## Structs <a name="Structs" id="Structs"></a>
 
+### BundlingOptions <a name="BundlingOptions" id="ft-python-lambda.BundlingOptions"></a>
+
+Options for bundling.
+
+#### Initializer <a name="Initializer" id="ft-python-lambda.BundlingOptions.Initializer"></a>
+
+```typescript
+import { BundlingOptions } from 'ft-python-lambda'
+
+const bundlingOptions: BundlingOptions = { ... }
+```
+
+#### Properties <a name="Properties" id="Properties"></a>
+
+| **Name** | **Type** | **Description** |
+| --- | --- | --- |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.command">command</a></code> | <code>string[]</code> | The command to run in the container. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.entrypoint">entrypoint</a></code> | <code>string[]</code> | The entrypoint to run in the container. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.environment">environment</a></code> | <code>{[ key: string ]: string}</code> | The environment variables to pass to the container. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.network">network</a></code> | <code>string</code> | Docker [Networking options](https://docs.docker.com/engine/reference/commandline/run/#connect-a-container-to-a-network---network). |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.platform">platform</a></code> | <code>string</code> | Set platform if server is multi-platform capable. _Requires Docker Engine API v1.38+_. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.securityOpt">securityOpt</a></code> | <code>string</code> | [Security configuration](https://docs.docker.com/engine/reference/run/#security-configuration) when running the docker container. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.user">user</a></code> | <code>string</code> | The user to use when running the container. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.volumes">volumes</a></code> | <code>aws-cdk-lib.DockerVolume[]</code> | Docker volumes to mount. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.volumesFrom">volumesFrom</a></code> | <code>string[]</code> | Where to mount the specified volumes from. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.workingDirectory">workingDirectory</a></code> | <code>string</code> | Working directory inside the container. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.assetExcludes">assetExcludes</a></code> | <code>string[]</code> | List of file patterns to exclude when copying assets from source for bundling. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.assetHash">assetHash</a></code> | <code>string</code> | Specify a custom hash for this asset. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.assetHashType">assetHashType</a></code> | <code>aws-cdk-lib.AssetHashType</code> | Determines how asset hash is calculated. Assets will get rebuild and uploaded only if their hash has changed. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the default container. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Which option to use to copy the source files to the docker container and output files back. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.commandHooks">commandHooks</a></code> | <code><a href="#ft-python-lambda.ICommandHooks">ICommandHooks</a></code> | Command hooks. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | Docker image to use for bundling. |
+| <code><a href="#ft-python-lambda.BundlingOptions.property.outputPathSuffix">outputPathSuffix</a></code> | <code>string</code> | Output path suffix: the suffix for the directory into which the bundled output is written. |
+
+---
+
+##### `command`<sup>Optional</sup> <a name="command" id="ft-python-lambda.BundlingOptions.property.command"></a>
+
+```typescript
+public readonly command: string[];
+```
+
+- *Type:* string[]
+- *Default:* run the command defined in the image
+
+The command to run in the container.
+
+---
+
+##### `entrypoint`<sup>Optional</sup> <a name="entrypoint" id="ft-python-lambda.BundlingOptions.property.entrypoint"></a>
+
+```typescript
+public readonly entrypoint: string[];
+```
+
+- *Type:* string[]
+- *Default:* run the entrypoint defined in the image
+
+The entrypoint to run in the container.
+
+---
+
+##### `environment`<sup>Optional</sup> <a name="environment" id="ft-python-lambda.BundlingOptions.property.environment"></a>
+
+```typescript
+public readonly environment: {[ key: string ]: string};
+```
+
+- *Type:* {[ key: string ]: string}
+- *Default:* no environment variables.
+
+The environment variables to pass to the container.
+
+---
+
+##### `network`<sup>Optional</sup> <a name="network" id="ft-python-lambda.BundlingOptions.property.network"></a>
+
+```typescript
+public readonly network: string;
+```
+
+- *Type:* string
+- *Default:* no networking options
+
+Docker [Networking options](https://docs.docker.com/engine/reference/commandline/run/#connect-a-container-to-a-network---network).
+
+---
+
+##### `platform`<sup>Optional</sup> <a name="platform" id="ft-python-lambda.BundlingOptions.property.platform"></a>
+
+```typescript
+public readonly platform: string;
+```
+
+- *Type:* string
+- *Default:* no platform specified
+
+Set platform if server is multi-platform capable. _Requires Docker Engine API v1.38+_.
+
+Example value: `linux/amd64`
+
+---
+
+##### `securityOpt`<sup>Optional</sup> <a name="securityOpt" id="ft-python-lambda.BundlingOptions.property.securityOpt"></a>
+
+```typescript
+public readonly securityOpt: string;
+```
+
+- *Type:* string
+- *Default:* no security options
+
+[Security configuration](https://docs.docker.com/engine/reference/run/#security-configuration) when running the docker container.
+
+---
+
+##### `user`<sup>Optional</sup> <a name="user" id="ft-python-lambda.BundlingOptions.property.user"></a>
+
+```typescript
+public readonly user: string;
+```
+
+- *Type:* string
+- *Default:* root or image default
+
+The user to use when running the container.
+
+---
+
+##### `volumes`<sup>Optional</sup> <a name="volumes" id="ft-python-lambda.BundlingOptions.property.volumes"></a>
+
+```typescript
+public readonly volumes: DockerVolume[];
+```
+
+- *Type:* aws-cdk-lib.DockerVolume[]
+- *Default:* no volumes are mounted
+
+Docker volumes to mount.
+
+---
+
+##### `volumesFrom`<sup>Optional</sup> <a name="volumesFrom" id="ft-python-lambda.BundlingOptions.property.volumesFrom"></a>
+
+```typescript
+public readonly volumesFrom: string[];
+```
+
+- *Type:* string[]
+- *Default:* no containers are specified to mount volumes from
+
+Where to mount the specified volumes from.
+
+> [https://docs.docker.com/engine/reference/commandline/run/#mount-volumes-from-container---volumes-from](https://docs.docker.com/engine/reference/commandline/run/#mount-volumes-from-container---volumes-from)
+
+---
+
+##### `workingDirectory`<sup>Optional</sup> <a name="workingDirectory" id="ft-python-lambda.BundlingOptions.property.workingDirectory"></a>
+
+```typescript
+public readonly workingDirectory: string;
+```
+
+- *Type:* string
+- *Default:* image default
+
+Working directory inside the container.
+
+---
+
+##### `assetExcludes`<sup>Optional</sup> <a name="assetExcludes" id="ft-python-lambda.BundlingOptions.property.assetExcludes"></a>
+
+```typescript
+public readonly assetExcludes: string[];
+```
+
+- *Type:* string[]
+- *Default:* DEFAULT_ASSET_EXCLUDES
+
+List of file patterns to exclude when copying assets from source for bundling.
+
+---
+
+##### `assetHash`<sup>Optional</sup> <a name="assetHash" id="ft-python-lambda.BundlingOptions.property.assetHash"></a>
+
+```typescript
+public readonly assetHash: string;
+```
+
+- *Type:* string
+- *Default:* Based on `assetHashType`
+
+Specify a custom hash for this asset.
+
+If `assetHashType` is set it must
+be set to `AssetHashType.CUSTOM`. For consistency, this custom hash will
+be SHA256 hashed and encoded as hex. The resulting hash will be the asset
+hash.
+
+NOTE: the hash is used in order to identify a specific revision of the asset, and
+used for optimizing and caching deployment activities related to this asset such as
+packaging, uploading to Amazon S3, etc. If you chose to customize the hash, you will
+need to make sure it is updated every time the asset changes, or otherwise it is
+possible that some deployments will not be invalidated.
+
+---
+
+##### `assetHashType`<sup>Optional</sup> <a name="assetHashType" id="ft-python-lambda.BundlingOptions.property.assetHashType"></a>
+
+```typescript
+public readonly assetHashType: AssetHashType;
+```
+
+- *Type:* aws-cdk-lib.AssetHashType
+- *Default:* AssetHashType.SOURCE By default, hash is calculated based on the contents of the source directory. This means that only updates to the source will cause the asset to rebuild.
+
+Determines how asset hash is calculated. Assets will get rebuild and uploaded only if their hash has changed.
+
+If asset hash is set to `SOURCE` (default), then only changes to the source
+directory will cause the asset to rebuild. This means, for example, that in
+order to pick up a new dependency version, a change must be made to the
+source tree. Ideally, this can be implemented by including a dependency
+lockfile in your source tree or using fixed dependencies.
+
+If the asset hash is set to `OUTPUT`, the hash is calculated after
+bundling. This means that any change in the output will cause the asset to
+be invalidated and uploaded. Bear in mind that `pip` adds timestamps to
+dependencies it installs, which implies that in this mode Python bundles
+will _always_ get rebuild and uploaded. Normally this is an anti-pattern
+since build
+
+---
+
+##### `buildArgs`<sup>Optional</sup> <a name="buildArgs" id="ft-python-lambda.BundlingOptions.property.buildArgs"></a>
+
+```typescript
+public readonly buildArgs: {[ key: string ]: string};
+```
+
+- *Type:* {[ key: string ]: string}
+- *Default:* No build arguments.
+
+Optional build arguments to pass to the default container.
+
+This can be used to customize
+the index URLs used for installing dependencies.
+This is not used if a custom image is provided.
+
+---
+
+##### `bundlingFileAccess`<sup>Optional</sup> <a name="bundlingFileAccess" id="ft-python-lambda.BundlingOptions.property.bundlingFileAccess"></a>
+
+```typescript
+public readonly bundlingFileAccess: BundlingFileAccess;
+```
+
+- *Type:* aws-cdk-lib.BundlingFileAccess
+- *Default:* BundlingFileAccess.BIND_MOUNT
+
+Which option to use to copy the source files to the docker container and output files back.
+
+---
+
+##### `commandHooks`<sup>Optional</sup> <a name="commandHooks" id="ft-python-lambda.BundlingOptions.property.commandHooks"></a>
+
+```typescript
+public readonly commandHooks: ICommandHooks;
+```
+
+- *Type:* <a href="#ft-python-lambda.ICommandHooks">ICommandHooks</a>
+- *Default:* do not run additional commands
+
+Command hooks.
+
+---
+
+##### `image`<sup>Optional</sup> <a name="image" id="ft-python-lambda.BundlingOptions.property.image"></a>
+
+```typescript
+public readonly image: DockerImage;
+```
+
+- *Type:* aws-cdk-lib.DockerImage
+- *Default:* Default bundling image.
+
+Docker image to use for bundling.
+
+If no options are provided, the default bundling image
+will be used. Dependencies will be installed using the default packaging commands
+and copied over from into the Lambda asset.
+
+---
+
+##### `outputPathSuffix`<sup>Optional</sup> <a name="outputPathSuffix" id="ft-python-lambda.BundlingOptions.property.outputPathSuffix"></a>
+
+```typescript
+public readonly outputPathSuffix: string;
+```
+
+- *Type:* string
+- *Default:* 'python' for a layer, empty string otherwise.
+
+Output path suffix: the suffix for the directory into which the bundled output is written.
+
+---
+
 ### BundlingProps <a name="BundlingProps" id="ft-python-lambda.BundlingProps"></a>
 
 #### Initializer <a name="Initializer" id="ft-python-lambda.BundlingProps.Initializer"></a>
@@ -1148,13 +1455,19 @@ const bundlingProps: BundlingProps = { ... }
 | <code><a href="#ft-python-lambda.BundlingProps.property.volumes">volumes</a></code> | <code>aws-cdk-lib.DockerVolume[]</code> | Docker volumes to mount. |
 | <code><a href="#ft-python-lambda.BundlingProps.property.volumesFrom">volumesFrom</a></code> | <code>string[]</code> | Where to mount the specified volumes from. |
 | <code><a href="#ft-python-lambda.BundlingProps.property.workingDirectory">workingDirectory</a></code> | <code>string</code> | Working directory inside the container. |
-| <code><a href="#ft-python-lambda.BundlingProps.property.entry">entry</a></code> | <code>string</code> | *No description.* |
-| <code><a href="#ft-python-lambda.BundlingProps.property.runtime">runtime</a></code> | <code>aws-cdk-lib.aws_lambda.Runtime</code> | *No description.* |
-| <code><a href="#ft-python-lambda.BundlingProps.property.architecture">architecture</a></code> | <code>aws-cdk-lib.aws_lambda.Architecture</code> | Lambda CPU architecture. |
-| <code><a href="#ft-python-lambda.BundlingProps.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the bundling container when the default image is used. |
-| <code><a href="#ft-python-lambda.BundlingProps.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Specifies how to copy files to/from the docker container. |
+| <code><a href="#ft-python-lambda.BundlingProps.property.assetExcludes">assetExcludes</a></code> | <code>string[]</code> | List of file patterns to exclude when copying assets from source for bundling. |
+| <code><a href="#ft-python-lambda.BundlingProps.property.assetHash">assetHash</a></code> | <code>string</code> | Specify a custom hash for this asset. |
+| <code><a href="#ft-python-lambda.BundlingProps.property.assetHashType">assetHashType</a></code> | <code>aws-cdk-lib.AssetHashType</code> | Determines how asset hash is calculated. Assets will get rebuild and uploaded only if their hash has changed. |
+| <code><a href="#ft-python-lambda.BundlingProps.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the default container. |
+| <code><a href="#ft-python-lambda.BundlingProps.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Which option to use to copy the source files to the docker container and output files back. |
+| <code><a href="#ft-python-lambda.BundlingProps.property.commandHooks">commandHooks</a></code> | <code><a href="#ft-python-lambda.ICommandHooks">ICommandHooks</a></code> | Command hooks. |
 | <code><a href="#ft-python-lambda.BundlingProps.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | Docker image to use for bundling. |
+| <code><a href="#ft-python-lambda.BundlingProps.property.outputPathSuffix">outputPathSuffix</a></code> | <code>string</code> | Output path suffix: the suffix for the directory into which the bundled output is written. |
+| <code><a href="#ft-python-lambda.BundlingProps.property.rootDir">rootDir</a></code> | <code>string</code> | uv project root (workspace root). |
+| <code><a href="#ft-python-lambda.BundlingProps.property.runtime">runtime</a></code> | <code>aws-cdk-lib.aws_lambda.Runtime</code> | Lambda runtime (must be one of the Python runtimes). |
+| <code><a href="#ft-python-lambda.BundlingProps.property.architecture">architecture</a></code> | <code>aws-cdk-lib.aws_lambda.Architecture</code> | Lambda CPU architecture. |
 | <code><a href="#ft-python-lambda.BundlingProps.property.skip">skip</a></code> | <code>boolean</code> | Skip bundling process. |
+| <code><a href="#ft-python-lambda.BundlingProps.property.workspacePackage">workspacePackage</a></code> | <code>string</code> | uv package to use for the Lambda Function. |
 
 ---
 
@@ -1292,36 +1605,66 @@ Working directory inside the container.
 
 ---
 
-##### `entry`<sup>Required</sup> <a name="entry" id="ft-python-lambda.BundlingProps.property.entry"></a>
+##### `assetExcludes`<sup>Optional</sup> <a name="assetExcludes" id="ft-python-lambda.BundlingProps.property.assetExcludes"></a>
 
 ```typescript
-public readonly entry: string;
+public readonly assetExcludes: string[];
+```
+
+- *Type:* string[]
+- *Default:* DEFAULT_ASSET_EXCLUDES
+
+List of file patterns to exclude when copying assets from source for bundling.
+
+---
+
+##### `assetHash`<sup>Optional</sup> <a name="assetHash" id="ft-python-lambda.BundlingProps.property.assetHash"></a>
+
+```typescript
+public readonly assetHash: string;
 ```
 
 - *Type:* string
+- *Default:* Based on `assetHashType`
+
+Specify a custom hash for this asset.
+
+If `assetHashType` is set it must
+be set to `AssetHashType.CUSTOM`. For consistency, this custom hash will
+be SHA256 hashed and encoded as hex. The resulting hash will be the asset
+hash.
+
+NOTE: the hash is used in order to identify a specific revision of the asset, and
+used for optimizing and caching deployment activities related to this asset such as
+packaging, uploading to Amazon S3, etc. If you chose to customize the hash, you will
+need to make sure it is updated every time the asset changes, or otherwise it is
+possible that some deployments will not be invalidated.
 
 ---
 
-##### `runtime`<sup>Required</sup> <a name="runtime" id="ft-python-lambda.BundlingProps.property.runtime"></a>
+##### `assetHashType`<sup>Optional</sup> <a name="assetHashType" id="ft-python-lambda.BundlingProps.property.assetHashType"></a>
 
 ```typescript
-public readonly runtime: Runtime;
+public readonly assetHashType: AssetHashType;
 ```
 
-- *Type:* aws-cdk-lib.aws_lambda.Runtime
+- *Type:* aws-cdk-lib.AssetHashType
+- *Default:* AssetHashType.SOURCE By default, hash is calculated based on the contents of the source directory. This means that only updates to the source will cause the asset to rebuild.
 
----
+Determines how asset hash is calculated. Assets will get rebuild and uploaded only if their hash has changed.
 
-##### `architecture`<sup>Optional</sup> <a name="architecture" id="ft-python-lambda.BundlingProps.property.architecture"></a>
+If asset hash is set to `SOURCE` (default), then only changes to the source
+directory will cause the asset to rebuild. This means, for example, that in
+order to pick up a new dependency version, a change must be made to the
+source tree. Ideally, this can be implemented by including a dependency
+lockfile in your source tree or using fixed dependencies.
 
-```typescript
-public readonly architecture: Architecture;
-```
-
-- *Type:* aws-cdk-lib.aws_lambda.Architecture
-- *Default:* Architecture.X86_64
-
-Lambda CPU architecture.
+If the asset hash is set to `OUTPUT`, the hash is calculated after
+bundling. This means that any change in the output will cause the asset to
+be invalidated and uploaded. Bear in mind that `pip` adds timestamps to
+dependencies it installs, which implies that in this mode Python bundles
+will _always_ get rebuild and uploaded. Normally this is an anti-pattern
+since build
 
 ---
 
@@ -1332,9 +1675,13 @@ public readonly buildArgs: {[ key: string ]: string};
 ```
 
 - *Type:* {[ key: string ]: string}
-- *Default:* {}
+- *Default:* No build arguments.
 
-Optional build arguments to pass to the bundling container when the default image is used.
+Optional build arguments to pass to the default container.
+
+This can be used to customize
+the index URLs used for installing dependencies.
+This is not used if a custom image is provided.
 
 ---
 
@@ -1347,10 +1694,20 @@ public readonly bundlingFileAccess: BundlingFileAccess;
 - *Type:* aws-cdk-lib.BundlingFileAccess
 - *Default:* BundlingFileAccess.BIND_MOUNT
 
-Specifies how to copy files to/from the docker container.
+Which option to use to copy the source files to the docker container and output files back.
 
-BIND_MOUNT is generally faster
-but VOLUME_MOUNT works with remote Docker contexts.
+---
+
+##### `commandHooks`<sup>Optional</sup> <a name="commandHooks" id="ft-python-lambda.BundlingProps.property.commandHooks"></a>
+
+```typescript
+public readonly commandHooks: ICommandHooks;
+```
+
+- *Type:* <a href="#ft-python-lambda.ICommandHooks">ICommandHooks</a>
+- *Default:* do not run additional commands
+
+Command hooks.
 
 ---
 
@@ -1361,9 +1718,63 @@ public readonly image: DockerImage;
 ```
 
 - *Type:* aws-cdk-lib.DockerImage
-- *Default:* Default bundling image from the sam/build-python set
+- *Default:* Default bundling image.
 
 Docker image to use for bundling.
+
+If no options are provided, the default bundling image
+will be used. Dependencies will be installed using the default packaging commands
+and copied over from into the Lambda asset.
+
+---
+
+##### `outputPathSuffix`<sup>Optional</sup> <a name="outputPathSuffix" id="ft-python-lambda.BundlingProps.property.outputPathSuffix"></a>
+
+```typescript
+public readonly outputPathSuffix: string;
+```
+
+- *Type:* string
+- *Default:* 'python' for a layer, empty string otherwise.
+
+Output path suffix: the suffix for the directory into which the bundled output is written.
+
+---
+
+##### `rootDir`<sup>Required</sup> <a name="rootDir" id="ft-python-lambda.BundlingProps.property.rootDir"></a>
+
+```typescript
+public readonly rootDir: string;
+```
+
+- *Type:* string
+
+uv project root (workspace root).
+
+---
+
+##### `runtime`<sup>Required</sup> <a name="runtime" id="ft-python-lambda.BundlingProps.property.runtime"></a>
+
+```typescript
+public readonly runtime: Runtime;
+```
+
+- *Type:* aws-cdk-lib.aws_lambda.Runtime
+
+Lambda runtime (must be one of the Python runtimes).
+
+---
+
+##### `architecture`<sup>Optional</sup> <a name="architecture" id="ft-python-lambda.BundlingProps.property.architecture"></a>
+
+```typescript
+public readonly architecture: Architecture;
+```
+
+- *Type:* aws-cdk-lib.aws_lambda.Architecture
+- *Default:* Architecture.ARM_64
+
+Lambda CPU architecture.
 
 ---
 
@@ -1377,6 +1788,18 @@ public readonly skip: boolean;
 - *Default:* false
 
 Skip bundling process.
+
+---
+
+##### `workspacePackage`<sup>Optional</sup> <a name="workspacePackage" id="ft-python-lambda.BundlingProps.property.workspacePackage"></a>
+
+```typescript
+public readonly workspacePackage: string;
+```
+
+- *Type:* string
+
+uv package to use for the Lambda Function.
 
 ---
 
@@ -1443,11 +1866,12 @@ const pythonFunctionProps: PythonFunctionProps = { ... }
 | <code><a href="#ft-python-lambda.PythonFunctionProps.property.tracing">tracing</a></code> | <code>aws-cdk-lib.aws_lambda.Tracing</code> | Enable AWS X-Ray Tracing for Lambda Function. |
 | <code><a href="#ft-python-lambda.PythonFunctionProps.property.vpc">vpc</a></code> | <code>aws-cdk-lib.aws_ec2.IVpc</code> | VPC network to place Lambda network interfaces. |
 | <code><a href="#ft-python-lambda.PythonFunctionProps.property.vpcSubnets">vpcSubnets</a></code> | <code>aws-cdk-lib.aws_ec2.SubnetSelection</code> | Where to place the network interfaces within the VPC. |
-| <code><a href="#ft-python-lambda.PythonFunctionProps.property.entry">entry</a></code> | <code>string</code> | Path where index and function dependencies can be found. |
-| <code><a href="#ft-python-lambda.PythonFunctionProps.property.bundling">bundling</a></code> | <code>aws-cdk-lib.BundlingOptions</code> | Custom bundling options, including build architecture and bundling container image. |
+| <code><a href="#ft-python-lambda.PythonFunctionProps.property.rootDir">rootDir</a></code> | <code>string</code> | UV project root directory (workspace root). |
+| <code><a href="#ft-python-lambda.PythonFunctionProps.property.bundling">bundling</a></code> | <code><a href="#ft-python-lambda.BundlingOptions">BundlingOptions</a></code> | Custom bundling options, including build architecture and bundling container image. |
 | <code><a href="#ft-python-lambda.PythonFunctionProps.property.handler">handler</a></code> | <code>string</code> | The name of the exported handler function in the #index. |
-| <code><a href="#ft-python-lambda.PythonFunctionProps.property.index">index</a></code> | <code>string</code> | The path to the index file containing the handler. |
+| <code><a href="#ft-python-lambda.PythonFunctionProps.property.index">index</a></code> | <code>string</code> | The path to the index file with the project or (or workspace, if specified) containing the handler. |
 | <code><a href="#ft-python-lambda.PythonFunctionProps.property.runtime">runtime</a></code> | <code>aws-cdk-lib.aws_lambda.Runtime</code> | The runtime. |
+| <code><a href="#ft-python-lambda.PythonFunctionProps.property.workspacePackage">workspacePackage</a></code> | <code>string</code> | Optional UV project workspace, used to specify a specific package to be used as a Lambda Function entry. |
 
 ---
 
@@ -2217,15 +2641,15 @@ public subnets is not allowed (unless `allowPublicSubnet` is set to `true`).
 
 ---
 
-##### `entry`<sup>Required</sup> <a name="entry" id="ft-python-lambda.PythonFunctionProps.property.entry"></a>
+##### `rootDir`<sup>Required</sup> <a name="rootDir" id="ft-python-lambda.PythonFunctionProps.property.rootDir"></a>
 
 ```typescript
-public readonly entry: string;
+public readonly rootDir: string;
 ```
 
 - *Type:* string
 
-Path where index and function dependencies can be found.
+UV project root directory (workspace root).
 
 ---
 
@@ -2235,7 +2659,7 @@ Path where index and function dependencies can be found.
 public readonly bundling: BundlingOptions;
 ```
 
-- *Type:* aws-cdk-lib.BundlingOptions
+- *Type:* <a href="#ft-python-lambda.BundlingOptions">BundlingOptions</a>
 
 Custom bundling options, including build architecture and bundling container image.
 
@@ -2263,9 +2687,7 @@ public readonly index: string;
 - *Type:* string
 - *Default:* index.py
 
-The path to the index file containing the handler.
-
-Relative to #entry
+The path to the index file with the project or (or workspace, if specified) containing the handler.
 
 ---
 
@@ -2279,6 +2701,18 @@ public readonly runtime: Runtime;
 - *Default:* Runtime.PYTHON_3_12
 
 The runtime.
+
+---
+
+##### `workspacePackage`<sup>Optional</sup> <a name="workspacePackage" id="ft-python-lambda.PythonFunctionProps.property.workspacePackage"></a>
+
+```typescript
+public readonly workspacePackage: string;
+```
+
+- *Type:* string
+
+Optional UV project workspace, used to specify a specific package to be used as a Lambda Function entry.
 
 ---
 
@@ -2459,5 +2893,81 @@ public readonly workingDirectory: string;
 
 ---
 
+
+## Protocols <a name="Protocols" id="Protocols"></a>
+
+### ICommandHooks <a name="ICommandHooks" id="ft-python-lambda.ICommandHooks"></a>
+
+- *Implemented By:* <a href="#ft-python-lambda.ICommandHooks">ICommandHooks</a>
+
+Command hooks.
+
+These commands will run in the environment in which bundling occurs: inside
+the container for Docker bundling or on the host OS for local bundling.
+
+Commands are chained with `&&`.
+
+```text
+{
+  // Run tests prior to bundling
+  beforeBundling(inputDir: string, outputDir: string): string[] {
+    return [`pytest`];
+  }
+  // ...
+}
+```
+
+#### Methods <a name="Methods" id="Methods"></a>
+
+| **Name** | **Description** |
+| --- | --- |
+| <code><a href="#ft-python-lambda.ICommandHooks.afterBundling">afterBundling</a></code> | Returns commands to run after bundling. |
+| <code><a href="#ft-python-lambda.ICommandHooks.beforeBundling">beforeBundling</a></code> | Returns commands to run before bundling. |
+
+---
+
+##### `afterBundling` <a name="afterBundling" id="ft-python-lambda.ICommandHooks.afterBundling"></a>
+
+```typescript
+public afterBundling(inputDir: string, outputDir: string): string[]
+```
+
+Returns commands to run after bundling.
+
+Commands are chained with `&&`.
+
+###### `inputDir`<sup>Required</sup> <a name="inputDir" id="ft-python-lambda.ICommandHooks.afterBundling.parameter.inputDir"></a>
+
+- *Type:* string
+
+---
+
+###### `outputDir`<sup>Required</sup> <a name="outputDir" id="ft-python-lambda.ICommandHooks.afterBundling.parameter.outputDir"></a>
+
+- *Type:* string
+
+---
+
+##### `beforeBundling` <a name="beforeBundling" id="ft-python-lambda.ICommandHooks.beforeBundling"></a>
+
+```typescript
+public beforeBundling(inputDir: string, outputDir: string): string[]
+```
+
+Returns commands to run before bundling.
+
+Commands are chained with `&&`.
+
+###### `inputDir`<sup>Required</sup> <a name="inputDir" id="ft-python-lambda.ICommandHooks.beforeBundling.parameter.inputDir"></a>
+
+- *Type:* string
+
+---
+
+###### `outputDir`<sup>Required</sup> <a name="outputDir" id="ft-python-lambda.ICommandHooks.beforeBundling.parameter.outputDir"></a>
+
+- *Type:* string
+
+---
 
 

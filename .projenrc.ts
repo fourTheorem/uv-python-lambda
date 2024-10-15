@@ -20,4 +20,5 @@ const project = new awscdk.AwsCdkConstructLibrary({
   devDeps: ['@biomejs/biome'] /* Build dependencies for this module. */,
   // packageName: undefined,  /* The "name" in package.json. */
 });
+project.files;
 project.synth();
