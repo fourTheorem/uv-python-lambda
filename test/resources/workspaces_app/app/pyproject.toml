@@ -1,0 +1,13 @@
+[project]
+name = "app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "common",
+    "pydantic>=2.9.2",
+]
+
+[tool.uv.sources]
+common = { workspace = true }

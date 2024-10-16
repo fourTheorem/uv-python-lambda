@@ -1,8 +1,8 @@
 {
-  "name": "ft-python-lambda",
+  "name": "uv-python-lambda",
   "repository": {
     "type": "git",
-    "url": "git@github.com:fourtheorem/ft-python-lambda.git"
+    "url": "git@github.com:fourtheorem/uv-python-lambda.git"
   },
   "scripts": {
     "build": "npx projen build",
@@ -130,8 +130,8 @@
     "outdir": "dist",
     "targets": {
       "python": {
-        "distName": "fourtheorem.ft-python-lambda",
-        "module": "fourtheorem.ft_python_lambda"
+        "distName": "fourtheorem.uv-python-lambda",
+        "module": "fourtheorem.uv_python_lambda"
       }
     },
     "tsc": {

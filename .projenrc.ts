@@ -6,12 +6,12 @@ const project = new awscdk.AwsCdkConstructLibrary({
   constructsVersion: '10.3.0',
   defaultReleaseBranch: 'main',
   jsiiVersion: '~5.5.0',
-  name: 'ft-python-lambda',
+  name: 'uv-python-lambda',
   projenrcTs: true,
-  repositoryUrl: 'git@github.com:fourtheorem/ft-python-lambda.git',
+  repositoryUrl: 'git@github.com:fourtheorem/uv-python-lambda.git',
   publishToPypi: {
-    distName: 'fourtheorem.ft-python-lambda',
-    module: 'fourtheorem.ft_python_lambda',
+    distName: 'fourtheorem.uv-python-lambda',
+    module: 'fourtheorem.uv_python_lambda',
   },
   // cdkVersion: '2.1.0',    /* CDK version to use. */
   // cdkDependencies: [],     /* CDK dependencies of this module. */
