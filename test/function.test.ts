@@ -1,12 +1,31 @@
+import { exec } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { promisify } from 'node:util';
 import { App, Stack } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { Runtime } from 'aws-cdk-lib/aws-lambda';
+import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { PythonFunction } from '../src';
+const execAsync = promisify(exec);
 
 const resourcesPath = path.resolve(__dirname, 'resources');
 
+/**
+ * Determine the optimal Lambda Function architecture based on the Docker host's CPU
+ * architecture. This allows GHA runners to work without slow QEMU Arm emulation.
+ *
+ * @returns The Lambda Architecture
+ */
+async function getDockerHostArch(): Promise<Architecture> {
+  try {
+    const { stdout } = await execAsync('docker info --format "{{.Architecture}}"');
+    const arch = stdout.trim();
+    return arch === 'aarch64' ? Architecture.ARM_64 : Architecture.X86_64;
+  } catch (error) {
+    console.error('Error getting Docker host architecture:', error);
+    throw error;
+  }
+}
 
 test('Create a function from basic_app', async () => {
   const app = new App({});
@@ -16,6 +35,7 @@ test('Create a function from basic_app', async () => {
     index: 'handler.py',
     handler: 'lambda_handler',
     runtime: Runtime.PYTHON_3_12,
+    architecture: await getDockerHostArch(),
   });
 
   const template = Template.fromStack(stack);
@@ -44,6 +64,7 @@ test('Create a function with workspaces_app', async () => {
     index: 'app_handler.py',
     handler: 'handle_event',
     runtime: Runtime.PYTHON_3_10,
+    architecture: await getDockerHostArch(),
   });
 
   const template = Template.fromStack(stack);
