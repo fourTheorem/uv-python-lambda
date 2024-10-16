@@ -146,9 +146,9 @@ export class Bundling {
     commands.push(...[
       `rsync -rLv ${excludeArgs.join(' ')} ${options.inputDir}/ ${options.outputDir}`,
       `cd ${options.outputDir}`, // uv pip install needs to be run from here for editable deps to relative paths to be resolved
-      `VIRTUAL_ENV=/tmp/venv uv sync ${uvCommonArgs} ${uvPackageArgs} --compile-bytecode --no-dev --frozen --no-editable --link-mode=copy`,
-      `VIRTUAL_ENV=/tmp/venv uv export ${uvCommonArgs} ${uvPackageArgs} --no-dev --frozen --no-editable > ${reqsFile}`,
-      `uv pip install -r ${reqsFile} --target ${options.outputDir} --reinstall --compile-bytecode --link-mode=copy --editable $(grep -e "^\./" ${reqsFile})`,
+      `uv sync ${uvCommonArgs} ${uvPackageArgs} --python-preference=only-system --compile-bytecode --no-dev --frozen --no-editable --link-mode=copy`,
+      `uv export ${uvCommonArgs} ${uvPackageArgs} --no-dev --frozen --no-editable > ${reqsFile}`,
+      `uv pip install -r ${reqsFile} --target ${options.outputDir} --reinstall --compile-bytecode --link-mode=copy`, // --editable $(grep -e "^\./" ${reqsFile})`,
       `rm -rf ${options.outputDir}/.venv`,
     ]);
     commands.push(

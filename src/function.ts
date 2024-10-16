@@ -93,15 +93,17 @@ export class PythonFunction extends Function {
     });
 
     const assetPath = ((this.node.defaultChild) as CfnFunction).getMetadata('aws:asset:path');
-    const codePath = path.join(process.env.CDK_OUTDIR as string, assetPath);
+    if (assetPath) { // TODO - remove - we always need one
+      const codePath = path.join(process.env.CDK_OUTDIR as string, assetPath);
 
-    const pythonPaths = getPthFilePaths(codePath);
+      const pythonPaths = getPthFilePaths(codePath);
 
-    if (pythonPaths.length > 0) {
-      let pythonPathValue = environment.PYTHONPATH;
-      const addedPaths = pythonPaths.join(':');
-      pythonPathValue = pythonPathValue ? `${pythonPathValue}:${addedPaths}` : addedPaths;
-      this.addEnvironment('PYTHONPATH', pythonPathValue);
+      if (pythonPaths.length > 0) {
+        let pythonPathValue = environment.PYTHONPATH;
+        const addedPaths = pythonPaths.join(':');
+        pythonPathValue = pythonPathValue ? `${pythonPathValue}:${addedPaths}` : addedPaths;
+        this.addEnvironment('PYTHONPATH', pythonPathValue);
+      }
     }
   }
 }
