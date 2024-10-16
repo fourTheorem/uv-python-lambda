@@ -2,7 +2,7 @@
   "name": "uv-python-lambda",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fourtheorem/uv-python-lambda.git"
+    "url": "https://github.com/fourTheorem/uv-python-lambda"
   },
   "scripts": {
     "build": "npx projen build",

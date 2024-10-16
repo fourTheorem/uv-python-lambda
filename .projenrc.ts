@@ -8,7 +8,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
   jsiiVersion: '~5.5.0',
   name: 'uv-python-lambda',
   projenrcTs: true,
-  repositoryUrl: 'git+https://github.com/fourtheorem/uv-python-lambda.git',
+  repositoryUrl: 'https://github.com/fourTheorem/uv-python-lambda',
   publishToPypi: {
     distName: 'uv-python-lambda',
     module: 'uv_python_lambda',
