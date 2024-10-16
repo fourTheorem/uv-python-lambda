@@ -130,8 +130,8 @@
     "outdir": "dist",
     "targets": {
       "python": {
-        "distName": "fourtheorem.uv-python-lambda",
-        "module": "fourtheorem.uv_python_lambda"
+        "distName": "uv-python-lambda",
+        "module": "uv_python_lambda"
       }
     },
     "tsc": {

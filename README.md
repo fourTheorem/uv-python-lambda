@@ -19,7 +19,7 @@ See [API.md](API.md)
 ## Example
 
 ```python
-from fourtheorem.uv_python_lambda import PythonFunction
+from uv_python_lambda import PythonFunction
 from constructs import Construct
 
 # The root path should be relative to your CDK source file
