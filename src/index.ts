@@ -1,5 +1,3 @@
-export class Hello {
-  public sayHello() {
-    return 'hello, world!';
-  }
-}
+export * from './bundling';
+export * from './function';
+export * from './types';

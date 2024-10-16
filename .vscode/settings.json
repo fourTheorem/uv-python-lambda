@@ -1,0 +1,6 @@
+{
+  "editor.tabSize": 2,
+  "eslint.enable": false,
+  "editor.defaultFormatter": "biomejs.biome",
+  "editor.formatOnSave": true
+}
