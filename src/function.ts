@@ -66,7 +66,10 @@ export class PythonFunction extends Function {
     const architecture = props.architecture ?? Architecture.ARM_64;
     const rootDir = path.resolve(props.rootDir);
 
-    const resolvedHandler = `${index.slice(0, -3)}.${handler}`.replace(/\//g, '.');
+    // Strip .py from the end of handler if it exists
+    const strippedIndex = index.endsWith('.py') ? index.slice(0, -3) : index;
+
+    const resolvedHandler = `${strippedIndex}.${handler}`.replace(/\//g, '.');
 
     if (runtime.family !== RuntimeFamily.PYTHON) {
       throw new Error('Only Python runtimes are supported');
