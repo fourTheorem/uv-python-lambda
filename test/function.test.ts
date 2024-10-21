@@ -39,7 +39,6 @@ test('Create a function from basic_app', async () => {
   });
 
   const template = Template.fromStack(stack);
-  console.log(JSON.stringify(template.toJSON(), null, ' '));
 
   template.hasResourceProperties('AWS::Lambda::Function', {
     Handler: 'handler.lambda_handler',
@@ -55,6 +54,29 @@ test('Create a function from basic_app', async () => {
   expect(contents).toContain('handler.py');
 });
 
+test('Create a function from basic_app with no .py index extension', async () => {
+  const app = new App({});
+  const stack = new Stack(app, 'test');
+  new PythonFunction(stack, 'basic_app', {
+    rootDir: path.join(resourcesPath, 'basic_app'),
+    index: 'handler',
+    handler: 'lambda_handler',
+    runtime: Runtime.PYTHON_3_12,
+    architecture: await getDockerHostArch(),
+  });
+
+  const template = Template.fromStack(stack);
+
+  template.hasResourceProperties('AWS::Lambda::Function', {
+    Handler: 'handler.lambda_handler',
+    Runtime: 'python3.12',
+    Code: {
+      S3Bucket: Match.anyValue(),
+      S3Key: Match.anyValue(),
+    },
+  });
+});
+
 test('Create a function with workspaces_app', async () => {
   const app = new App({});
   const stack = new Stack(app, 'wstest');
@@ -68,7 +90,6 @@ test('Create a function with workspaces_app', async () => {
   });
 
   const template = Template.fromStack(stack);
-  console.log(JSON.stringify(template.toJSON(), null, ' '));
 
   template.hasResourceProperties('AWS::Lambda::Function', {
     Handler: 'app_handler.handle_event',
