@@ -101,7 +101,9 @@ export class PythonFunction extends Function {
       return;
     }
 
-    const assetPath = ((this.node.defaultChild) as CfnFunction).getMetadata('aws:asset:path');
+    const assetPath = (this.node.defaultChild as CfnFunction).getMetadata(
+      'aws:asset:path',
+    );
     if (!assetPath) {
       return;
     }
@@ -112,20 +114,28 @@ export class PythonFunction extends Function {
     if (pythonPaths.length > 0) {
       let pythonPathValue = environment.PYTHONPATH;
       const addedPaths = pythonPaths.join(':');
-      pythonPathValue = pythonPathValue ? `${pythonPathValue}:${addedPaths}` : addedPaths;
+      pythonPathValue = pythonPathValue
+        ? `${pythonPathValue}:${addedPaths}`
+        : addedPaths;
       this.addEnvironment('PYTHONPATH', pythonPathValue);
     }
   }
 }
 
 function getPthFilePaths(basePath: string): string[] {
-  const pthFiles = fs.readdirSync(basePath).filter(file => file.endsWith('.pth'));
+  const pthFiles = fs
+    .readdirSync(basePath)
+    .filter((file) => file.endsWith('.pth'));
   const pythonPaths: string[] = [];
   for (const pthFile of pthFiles) {
     const filePath = path.join(basePath, pthFile);
     const content = fs.readFileSync(filePath, 'utf-8');
-    const dirs = content.split('\n').filter(line => line.trim() !== '');
-    pythonPaths.push(...dirs.map(dir => path.join('/var/task', path.relative('/asset-output', dir))));
+    const dirs = content.split('\n').filter((line) => line.trim() !== '');
+    pythonPaths.push(
+      ...dirs.map((dir) =>
+        path.join('/var/task', path.relative('/asset-output', dir)),
+      ),
+    );
   }
   return pythonPaths;
 }

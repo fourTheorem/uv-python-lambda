@@ -97,14 +97,16 @@ export class Bundling {
       assetExcludes = DEFAULT_ASSET_EXCLUDES,
     } = props;
 
-    const bundlingCommands = props.skip ? [] : this.createBundlingCommands({
-      rootDir,
-      workspacePackage,
-      assetExcludes,
-      commandHooks,
-      inputDir: AssetStaging.BUNDLING_INPUT_DIR,
-      outputDir: AssetStaging.BUNDLING_OUTPUT_DIR,
-    });
+    const bundlingCommands = props.skip
+      ? []
+      : this.createBundlingCommands({
+          rootDir,
+          workspacePackage,
+          assetExcludes,
+          commandHooks,
+          inputDir: AssetStaging.BUNDLING_INPUT_DIR,
+          outputDir: AssetStaging.BUNDLING_OUTPUT_DIR,
+        });
 
     this.image = image ?? this.createDockerImage(props);
 
@@ -141,25 +143,37 @@ export class Bundling {
   }
 
   private createBundlingCommands(options: BundlingCommandOptions): string[] {
-    const excludeArgs = options.assetExcludes.map((exclude) => `--exclude="${exclude}"`);
+    const excludeArgs = options.assetExcludes.map(
+      (exclude) => `--exclude="${exclude}"`,
+    );
     const workspacePackage = options.workspacePackage;
     const uvCommonArgs = `--directory ${options.outputDir}`;
-    const uvPackageArgs = workspacePackage ? `--package ${workspacePackage}` : '';
+    const uvPackageArgs = workspacePackage
+      ? `--package ${workspacePackage}`
+      : '';
     const reqsFile = `/tmp/requirements${workspacePackage || ''}.txt`;
     const commands = [];
     commands.push(
-      ...options.commandHooks?.beforeBundling(options.inputDir, options.outputDir) ?? [],
+      ...(options.commandHooks?.beforeBundling(
+        options.inputDir,
+        options.outputDir,
+      ) ?? []),
     );
-    commands.push(...[
-      `rsync -rLv ${excludeArgs.join(' ')} ${options.inputDir}/ ${options.outputDir}`,
-      `cd ${options.outputDir}`, // uv pip install needs to be run from here for editable deps to relative paths to be resolved
-      `uv sync ${uvCommonArgs} ${uvPackageArgs} --python-preference=only-system --compile-bytecode --no-dev --frozen --no-editable --link-mode=copy`,
-      `uv export ${uvCommonArgs} ${uvPackageArgs} --no-dev --frozen --no-editable > ${reqsFile}`,
-      `uv pip install -r ${reqsFile} --target ${options.outputDir} --reinstall --compile-bytecode --link-mode=copy`,
-      `rm -rf ${options.outputDir}/.venv`,
-    ]);
     commands.push(
-      ...options.commandHooks?.afterBundling(options.inputDir, options.outputDir) ?? [],
+      ...[
+        `rsync -rLv ${excludeArgs.join(' ')} ${options.inputDir}/ ${options.outputDir}`,
+        `cd ${options.outputDir}`, // uv pip install needs to be run from here for editable deps to relative paths to be resolved
+        `uv sync ${uvCommonArgs} ${uvPackageArgs} --python-preference=only-system --compile-bytecode --no-dev --frozen --no-editable --link-mode=copy`,
+        `uv export ${uvCommonArgs} ${uvPackageArgs} --no-dev --frozen --no-editable > ${reqsFile}`,
+        `uv pip install -r ${reqsFile} --target ${options.outputDir} --reinstall --compile-bytecode --link-mode=copy`,
+        `rm -rf ${options.outputDir}/.venv`,
+      ],
+    );
+    commands.push(
+      ...(options.commandHooks?.afterBundling(
+        options.inputDir,
+        options.outputDir,
+      ) ?? []),
     );
 
     return commands;

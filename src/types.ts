@@ -1,10 +1,14 @@
-import type { AssetHashType, BundlingFileAccess, DockerImage, DockerRunOptions } from 'aws-cdk-lib/core';
+import type {
+  AssetHashType,
+  BundlingFileAccess,
+  DockerImage,
+  DockerRunOptions,
+} from 'aws-cdk-lib/core';
 
 /**
  * Options for bundling
  */
 export interface BundlingOptions extends DockerRunOptions {
-
   /**
    * List of file patterns to exclude when copying assets from source for bundling.
    *

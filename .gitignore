@@ -45,8 +45,8 @@ junit.xml
 !/src/
 /lib
 /dist/
-!/.eslintrc.json
 .jsii
 tsconfig.json
 !/API.md
+!/.github/workflows/biome.yml
 !/.projenrc.ts

@@ -1,4 +1,5 @@
 import { awscdk } from 'projen';
+import { JobPermission } from 'projen/lib/github/workflows-model';
 const project = new awscdk.AwsCdkConstructLibrary({
   author: 'Eoin Shanaghy',
   authorAddress: 'eoin.shanaghy@fourtheorem.com',
@@ -22,6 +23,40 @@ const project = new awscdk.AwsCdkConstructLibrary({
   jestOptions: {
     extraCliOptions: ['--testTimeout=300000'],
   },
+  eslint: false,
 });
+const biomeWorkflow = project.github?.addWorkflow('biome');
+biomeWorkflow?.on({
+  pullRequest: {
+    branches: ['main'],
+  },
+});
+biomeWorkflow?.addJobs({
+  biome: {
+    runsOn: ['ubuntu-latest'],
+    permissions: {
+      contents: JobPermission.READ,
+      idToken: JobPermission.WRITE,
+    },
+    steps: [
+      {
+        uses: 'actions/checkout@v4',
+      },
+      {
+        uses: 'actions/setup-node@v4',
+        with: {
+          'node-version': '20',
+        },
+      },
+      {
+        run: 'npm ci',
+      },
+      {
+        run: 'npx biome check',
+      },
+    ],
+  },
+});
+
 project.files;
 project.synth();

@@ -20,7 +20,9 @@ const resourcesPath = path.resolve(__dirname, 'resources');
  */
 async function getDockerHostArch(): Promise<Architecture> {
   try {
-    const { stdout } = await execAsync('docker info --format "{{.Architecture}}"');
+    const { stdout } = await execAsync(
+      'docker info --format "{{.Architecture}}"',
+    );
     const arch = stdout.trim();
     return arch === 'aarch64' ? Architecture.ARM_64 : Architecture.X86_64;
   } catch (error) {
@@ -51,7 +53,9 @@ const OLD_ENV = process.env;
 beforeEach(async () => {
   jest.resetModules();
   process.env = { ...OLD_ENV };
-  process.env.CDK_OUTDIR = await fs.mkdtemp(path.join(os.tmpdir(), 'uv-python-lambda-test-'));
+  process.env.CDK_OUTDIR = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'uv-python-lambda-test-'),
+  );
 });
 
 afterEach(async () => {
@@ -82,7 +86,9 @@ test('Create a function from basic_app', async () => {
       S3Key: Match.anyValue(),
     },
   });
-  const functions = Object.values(template.findResources('AWS::Lambda::Function'));
+  const functions = Object.values(
+    template.findResources('AWS::Lambda::Function'),
+  );
   expect(functions).toHaveLength(1);
   const contents = await getFunctionAssetContents(functions[0], app);
   expect(contents).toContain('handler.py');
@@ -114,7 +120,9 @@ test('Create a function from basic_app with no .py index extension', async () =>
 test('Create a function from basic_app when skip is true', async () => {
   const { stack } = await createStack();
 
-  const bundlingSpy = jest.spyOn(stack, 'bundlingRequired', 'get').mockReturnValue(false);
+  const bundlingSpy = jest
+    .spyOn(stack, 'bundlingRequired', 'get')
+    .mockReturnValue(false);
   const architecture = await getDockerHostArch();
 
   // To see this fail, comment out the `if (skip) { return; } code in the PythonFunction constructor
@@ -154,7 +162,9 @@ test('Create a function with workspaces_app', async () => {
     },
   });
 
-  const functions = Object.values(template.findResources('AWS::Lambda::Function'));
+  const functions = Object.values(
+    template.findResources('AWS::Lambda::Function'),
+  );
   expect(functions).toHaveLength(1);
   const contents = await getFunctionAssetContents(functions[0], app);
   for (const entry of [
