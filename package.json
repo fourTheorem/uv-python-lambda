@@ -56,7 +56,9 @@
     "aws-cdk-lib": "^2.161.1",
     "constructs": "^10.3.0"
   },
-  "keywords": ["cdk"],
+  "keywords": [
+    "cdk"
+  ],
   "main": "lib/index.js",
   "license": "Apache-2.0",
   "publishConfig": {
@@ -81,11 +83,23 @@
     ],
     "clearMocks": true,
     "collectCoverage": true,
-    "coverageReporters": ["json", "lcov", "clover", "cobertura", "text"],
+    "coverageReporters": [
+      "json",
+      "lcov",
+      "clover",
+      "cobertura",
+      "text"
+    ],
     "coverageDirectory": "coverage",
-    "coveragePathIgnorePatterns": ["/node_modules/"],
-    "testPathIgnorePatterns": ["/node_modules/"],
-    "watchPathIgnorePatterns": ["/node_modules/"],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "watchPathIgnorePatterns": [
+      "/node_modules/"
+    ],
     "reporters": [
       "default",
       [
