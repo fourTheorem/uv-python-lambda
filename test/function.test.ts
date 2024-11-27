@@ -1,10 +1,12 @@
 import { exec } from 'node:child_process';
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { App, Stack } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
+import * as cxapi from 'aws-cdk-lib/cx-api';
 import { PythonFunction } from '../src';
 const execAsync = promisify(exec);
 
@@ -27,9 +29,41 @@ async function getDockerHostArch(): Promise<Architecture> {
   }
 }
 
-test('Create a function from basic_app', async () => {
+/**
+ * Create a new CDK App and Stack with the given name and set the context to ensure
+ * that the 'aws:asset:path' metadata is set.
+ *
+ * @returns The App and Stack
+ */
+async function createStack(name = 'test'): Promise<{ app: App; stack: Stack }> {
   const app = new App({});
-  const stack = new Stack(app, 'test');
+  const stack = new Stack(app, name);
+
+  // This ensures that the 'aws:asset:path' metadata is set
+  stack.node.setContext(cxapi.ASSET_RESOURCE_METADATA_ENABLED_CONTEXT, true);
+
+  return { app, stack };
+}
+
+// Need to have CDK_OUTDIR set to something sensible as it's used to create the codePath when aws:asset:path is set
+const OLD_ENV = process.env;
+
+beforeEach(async () => {
+  jest.resetModules();
+  process.env = { ...OLD_ENV };
+  process.env.CDK_OUTDIR = await fs.mkdtemp(path.join(os.tmpdir(), 'uv-python-lambda-test-'));
+});
+
+afterEach(async () => {
+  if (process.env.CDK_OUTDIR) {
+    await fs.rm(process.env.CDK_OUTDIR, { recursive: true });
+  }
+  process.env = OLD_ENV;
+});
+
+test('Create a function from basic_app', async () => {
+  const { app, stack } = await createStack();
+
   new PythonFunction(stack, 'basic_app', {
     rootDir: path.join(resourcesPath, 'basic_app'),
     index: 'handler.py',
@@ -55,8 +89,8 @@ test('Create a function from basic_app', async () => {
 });
 
 test('Create a function from basic_app with no .py index extension', async () => {
-  const app = new App({});
-  const stack = new Stack(app, 'test');
+  const { stack } = await createStack();
+
   new PythonFunction(stack, 'basic_app', {
     rootDir: path.join(resourcesPath, 'basic_app'),
     index: 'handler',
@@ -77,9 +111,29 @@ test('Create a function from basic_app with no .py index extension', async () =>
   });
 });
 
+test('Create a function from basic_app when skip is true', async () => {
+  const { stack } = await createStack();
+
+  const bundlingSpy = jest.spyOn(stack, 'bundlingRequired', 'get').mockReturnValue(false);
+  const architecture = await getDockerHostArch();
+
+  // To see this fail, comment out the `if (skip) { return; } code in the PythonFunction constructor
+  expect(() => {
+    new PythonFunction(stack, 'basic_app', {
+      rootDir: path.join(resourcesPath, 'basic_app'),
+      index: 'handler',
+      handler: 'lambda_handler',
+      runtime: Runtime.PYTHON_3_12,
+      architecture,
+    });
+  }).not.toThrow();
+
+  bundlingSpy.mockRestore();
+});
+
 test('Create a function with workspaces_app', async () => {
-  const app = new App({});
-  const stack = new Stack(app, 'wstest');
+  const { app, stack } = await createStack('wstest');
+
   new PythonFunction(stack, 'workspaces_app', {
     rootDir: path.join(resourcesPath, 'workspaces_app'),
     workspacePackage: 'app',
@@ -122,4 +176,3 @@ async function getFunctionAssetContents(functionResource: any, app: App) {
   const contents = await fs.readdir(assetPath);
   return contents;
 }
-

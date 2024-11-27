@@ -75,10 +75,12 @@ export class PythonFunction extends Function {
       throw new Error('Only Python runtimes are supported');
     }
 
+    const skip = !Stack.of(scope).bundlingRequired;
+
     const code = Bundling.bundle({
       rootDir,
       runtime,
-      skip: !Stack.of(scope).bundlingRequired,
+      skip: skip,
       architecture,
       workspacePackage,
       ...props.bundling,
@@ -95,18 +97,23 @@ export class PythonFunction extends Function {
       handler: resolvedHandler,
     });
 
+    if (skip) {
+      return;
+    }
+
     const assetPath = ((this.node.defaultChild) as CfnFunction).getMetadata('aws:asset:path');
-    if (assetPath) { // TODO - remove - we always need one
-      const codePath = path.join(process.env.CDK_OUTDIR as string, assetPath);
+    if (!assetPath) {
+      return;
+    }
 
-      const pythonPaths = getPthFilePaths(codePath);
+    const codePath = path.join(process.env.CDK_OUTDIR as string, assetPath);
+    const pythonPaths = getPthFilePaths(codePath);
 
-      if (pythonPaths.length > 0) {
-        let pythonPathValue = environment.PYTHONPATH;
-        const addedPaths = pythonPaths.join(':');
-        pythonPathValue = pythonPathValue ? `${pythonPathValue}:${addedPaths}` : addedPaths;
-        this.addEnvironment('PYTHONPATH', pythonPathValue);
-      }
+    if (pythonPaths.length > 0) {
+      let pythonPathValue = environment.PYTHONPATH;
+      const addedPaths = pythonPaths.join(':');
+      pythonPathValue = pythonPathValue ? `${pythonPathValue}:${addedPaths}` : addedPaths;
+      this.addEnvironment('PYTHONPATH', pythonPathValue);
     }
   }
 }

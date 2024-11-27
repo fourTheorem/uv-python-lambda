@@ -21,6 +21,7 @@ export const DEFAULT_ASSET_EXCLUDES = [
   'node_modules/',
   'cdk.out/',
   '.git/',
+  'cdk',
 ];
 
 interface BundlingCommandOptions {
@@ -71,7 +72,7 @@ export class Bundling {
     return Code.fromAsset(options.rootDir, {
       assetHashType: AssetHashType.SOURCE,
       exclude: HASHABLE_DEPENDENCIES_EXCLUDE,
-      bundling: options.skip ? undefined : new Bundling(options),
+      bundling: new Bundling(options),
     });
   }
 
@@ -92,13 +93,11 @@ export class Bundling {
       rootDir,
       workspacePackage,
       image,
-      runtime,
       commandHooks,
       assetExcludes = DEFAULT_ASSET_EXCLUDES,
-      architecture = Architecture.ARM_64,
     } = props;
 
-    const bundlingCommands = this.createBundlingCommands({
+    const bundlingCommands = props.skip ? [] : this.createBundlingCommands({
       rootDir,
       workspacePackage,
       assetExcludes,
@@ -107,15 +106,7 @@ export class Bundling {
       outputDir: AssetStaging.BUNDLING_OUTPUT_DIR,
     });
 
-    this.image =
-      image ??
-      DockerImage.fromBuild(path.resolve(__dirname, '..', 'resources'), {
-        buildArgs: {
-          ...props.buildArgs,
-          IMAGE: runtime.bundlingImage.image,
-        },
-        platform: architecture.dockerPlatform,
-      });
+    this.image = image ?? this.createDockerImage(props);
 
     this.command = props.command ?? [
       'bash',
@@ -131,6 +122,22 @@ export class Bundling {
     this.securityOpt = props.securityOpt;
     this.network = props.network;
     this.bundlingFileAccess = props.bundlingFileAccess;
+  }
+
+  private createDockerImage(props: BundlingProps): DockerImage {
+    // If skip is true then don't call DockerImage.fromBuild as that calls dockerExec.
+    // Return a dummy object of the right type as it's not going to be used.
+    if (props.skip) {
+      return new DockerImage('skipped');
+    }
+
+    return DockerImage.fromBuild(path.resolve(__dirname, '..', 'resources'), {
+      buildArgs: {
+        ...props.buildArgs,
+        IMAGE: props.runtime.bundlingImage.image,
+      },
+      platform: (props.architecture ?? Architecture.ARM_64).dockerPlatform,
+    });
   }
 
   private createBundlingCommands(options: BundlingCommandOptions): string[] {
