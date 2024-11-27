@@ -7,7 +7,13 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "ignore": [".projen/", "tsconfig.*.json", ".eslintrc.json"]
+    "ignore": [
+      ".projen/",
+      "tsconfig.*.json",
+      ".eslintrc.json",
+      "package.json",
+      "package-lock.json"
+    ]
   },
   "formatter": {
     "enabled": true,
