@@ -1,3 +1,5 @@
+import { execSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import {
   AssetHashType,
@@ -13,6 +15,7 @@ import {
   type Runtime,
 } from 'aws-cdk-lib/aws-lambda';
 import type { BundlingOptions, ICommandHooks } from './types';
+import { BundlingStrategy } from './types';
 
 export const HASHABLE_DEPENDENCIES_EXCLUDE = [
   '*.pyc',
@@ -86,10 +89,55 @@ export class Bundling {
       hashableAssetExclude = HASHABLE_DEPENDENCIES_EXCLUDE,
       ...bundlingOptions
     } = options;
+    switch (options.bundlingStrategy) {
+      case BundlingStrategy.PACKAGE_VERSION:
+        return Bundling.packageVersionStrategy(bundlingOptions);
+      default:
+        return Bundling.sourceStrategy(bundlingOptions);
+    }
+  }
+
+  /**
+   * Uses the AssetHashType.SOURCE strategy to calculate the asset hash.
+   *
+   * If there are multiple functions being created from a workspace they will all be rebuilt if the source changes.
+   *
+   * @param options
+   * @private
+   */
+  private static sourceStrategy(options: BundlingProps): AssetCode {
     return Code.fromAsset(options.rootDir, {
       assetHashType: AssetHashType.SOURCE,
-      exclude: hashableAssetExclude,
-      bundling: new Bundling(bundlingOptions),
+      exclude: options.hashableAssetExclude,
+      bundling: new Bundling(options),
+    });
+  }
+
+  /**
+   * Uses the AssetHashType.CUSTOM strategy and uv tree output to calculate the asset hash.
+   *
+   * This strategy uses the output of `uv tree` to calculate the asset hash. If there are multiple packages in a workspace this method will only
+   * rebuild the asset for a package if the package or a dependency version changes. This will not pick up local changes to the source unless they
+   * also change the package version in pyproject.toml.
+   *
+   * @param options
+   * @private
+   */
+  private static packageVersionStrategy(options: BundlingProps): AssetCode {
+    const workspacePackage = options.workspacePackage;
+    const uvPackageArgs = workspacePackage
+      ? `--package ${workspacePackage}`
+      : '';
+    const command = `cd ${options.rootDir} && uv tree ${uvPackageArgs}`;
+    // TODO: find something that works on Windows, maybe automatically changing directory and running the command
+    const tree = execSync(command).toString().trim();
+    const assetHash = createHash('sha256').update(tree).digest('hex');
+
+    return Code.fromAsset(options.rootDir, {
+      assetHashType: AssetHashType.CUSTOM,
+      assetHash,
+      exclude: options.hashableAssetExclude,
+      bundling: new Bundling(options),
     });
   }
 
