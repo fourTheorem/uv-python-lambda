@@ -128,7 +128,10 @@ export class Bundling {
     const uvPackageArgs = workspacePackage
       ? `--package ${workspacePackage}`
       : '';
-    const command = `cd ${options.rootDir} && uv tree ${uvPackageArgs}`;
+    const uvTreeOptions = [
+      '--frozen', // don't try and update the lock file
+    ];
+    const command = `cd ${options.rootDir} && uv tree ${uvTreeOptions.join(' ')} ${uvPackageArgs}`;
     // TODO: find something that works on Windows, maybe automatically changing directory and running the command
     const tree = execSync(command).toString().trim();
     const assetHash = createHash('sha256').update(tree).digest('hex');
