@@ -129,6 +129,8 @@ export class Bundling {
       ? `--package ${workspacePackage}`
       : '';
     const uvTreeOptions = [
+      '--python-preference=only-system', // will be running the lambda python
+      '--no-dev', // don't need dev dependencies
       '--frozen', // don't try and update the lock file
     ];
     const command = `cd ${options.rootDir} && uv tree ${uvTreeOptions.join(' ')} ${uvPackageArgs}`;
