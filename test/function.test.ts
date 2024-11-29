@@ -816,12 +816,16 @@ async function copyWorkspaceToTemp(
     const gitPath = path.join(tempDir, workspace);
     await execAsync('git init', { cwd: gitPath });
     await execAsync('git add .', { cwd: gitPath });
-    await execAsync(
-      'git commit --author "Testy McTestface <test@example.com>" -m "commit for test purposes"',
-      {
-        cwd: gitPath,
-      },
-    );
+    await execAsync('git config user.email "test@example.com"', {
+      cwd: gitPath,
+    });
+    await execAsync('git config user.name "Testy McTestface"', {
+      cwd: gitPath,
+    });
+
+    await execAsync('git commit -m "commit for test purposes"', {
+      cwd: gitPath,
+    });
   }
   return tempDir;
 }
