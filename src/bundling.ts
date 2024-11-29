@@ -90,8 +90,6 @@ export class Bundling {
       ...bundlingOptions
     } = options;
     switch (options.bundlingStrategy) {
-      case BundlingStrategy.PACKAGE_VERSION:
-        return Bundling.packageVersionStrategy(bundlingOptions);
       case BundlingStrategy.GIT:
         return Bundling.gitStrategy(bundlingOptions);
       default:
@@ -110,39 +108,6 @@ export class Bundling {
   private static sourceStrategy(options: BundlingProps): AssetCode {
     return Code.fromAsset(options.rootDir, {
       assetHashType: AssetHashType.SOURCE,
-      exclude: options.hashableAssetExclude,
-      bundling: new Bundling(options),
-    });
-  }
-
-  /**
-   * Uses the AssetHashType.CUSTOM strategy and uv tree output to calculate the asset hash.
-   *
-   * This strategy uses the output of `uv tree` to calculate the asset hash. If there are multiple packages in a workspace this method will only
-   * rebuild the asset for a package if the package or a dependency version changes. This will not pick up local changes to the source unless they
-   * also change the package version in pyproject.toml.
-   *
-   * @param options
-   * @private
-   */
-  private static packageVersionStrategy(options: BundlingProps): AssetCode {
-    const workspacePackage = options.workspacePackage;
-    const uvPackageArgs = workspacePackage
-      ? `--package ${workspacePackage}`
-      : '';
-    const uvTreeOptions = [
-      '--python-preference=only-system', // will be running the lambda python
-      '--no-dev', // don't need dev dependencies
-      '--frozen', // don't try and update the lock file
-    ];
-    const command = `cd ${options.rootDir} && uv tree ${uvTreeOptions.join(' ')} ${uvPackageArgs}`;
-    // TODO: find something that works on Windows, maybe automatically changing directory and running the command
-    const tree = execSync(command).toString().trim();
-    const assetHash = createHash('sha256').update(tree).digest('hex');
-
-    return Code.fromAsset(options.rootDir, {
-      assetHashType: AssetHashType.CUSTOM,
-      assetHash,
       exclude: options.hashableAssetExclude,
       bundling: new Bundling(options),
     });
