@@ -93,6 +93,19 @@ export interface BundlingOptions extends DockerRunOptions {
    * @default - BundlingFileAccess.BIND_MOUNT
    */
   readonly bundlingFileAccess?: BundlingFileAccess;
+
+  /**
+   * Strategy for bundling
+   *
+   * @default - `BundlingStrategy.SOURCE`
+   *
+   */
+  readonly bundlingStrategy?: BundlingStrategy;
+}
+
+export enum BundlingStrategy {
+  SOURCE = 'source',
+  GIT = 'git',
 }
 
 /**
