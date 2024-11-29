@@ -18,7 +18,11 @@ const project = new awscdk.AwsCdkConstructLibrary({
   // cdkDependencies: [],     /* CDK dependencies of this module. */
   // deps: [],                /* Runtime dependencies of this module. */
   // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */
-  devDeps: ['@biomejs/biome'] /* Build dependencies for this module. */,
+  devDeps: [
+    '@biomejs/biome',
+    'fs-extra',
+    '@types/fs-extra',
+  ] /* Build dependencies for this module. */,
   // packageName: undefined,  /* The "name" in package.json. */
   jestOptions: {
     extraCliOptions: ['--testTimeout=300000'],
