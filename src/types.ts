@@ -105,7 +105,6 @@ export interface BundlingOptions extends DockerRunOptions {
 
 export enum BundlingStrategy {
   SOURCE = 'source',
-  PACKAGE_VERSION = 'package-version',
   GIT = 'git',
 }
 

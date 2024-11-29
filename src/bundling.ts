@@ -73,8 +73,6 @@ export interface BundlingProps extends BundlingOptions {
 export class Bundling {
   public static bundle(options: BundlingProps): AssetCode {
     switch (options.bundlingStrategy) {
-      case BundlingStrategy.PACKAGE_VERSION:
-        return Bundling.packageVersionStrategy(options);
       case BundlingStrategy.GIT:
         return Bundling.gitStrategy(options);
       default:
@@ -99,38 +97,14 @@ export class Bundling {
   }
 
   /**
-   * Uses the AssetHashType.CUSTOM strategy and uv tree output to calculate the asset hash.
+   * Uses the AssetHashType.CUSTOM strategy and git output to calculate the asset hash.
    *
-   * This strategy uses the output of `uv tree` to calculate the asset hash. If there are multiple packages in a workspace this method will only
-   * rebuild the asset for a package if the package or a dependency version changes. This will not pick up local changes to the source unless they
-   * also change the package version in pyproject.toml.
+   * This strategy uses the output of git commands to calculate the asset hash. If there are multiple packages in a workspace this method will
+   * rebuild the asset for a package if the package, local dependency, or a dependency version changes.
    *
    * @param options
    * @private
    */
-  private static packageVersionStrategy(options: BundlingProps): AssetCode {
-    const workspacePackage = options.workspacePackage;
-    const uvPackageArgs = workspacePackage
-      ? `--package ${workspacePackage}`
-      : '';
-    const uvTreeOptions = [
-      '--python-preference=only-system', // will be running the lambda python
-      '--no-dev', // don't need dev dependencies
-      '--frozen', // don't try and update the lock file
-    ];
-    const command = `cd ${options.rootDir} && uv tree ${uvTreeOptions.join(' ')} ${uvPackageArgs}`;
-    // TODO: find something that works on Windows, maybe automatically changing directory and running the command
-    const tree = execSync(command).toString().trim();
-    const assetHash = createHash('sha256').update(tree).digest('hex');
-
-    return Code.fromAsset(options.rootDir, {
-      assetHashType: AssetHashType.CUSTOM,
-      assetHash,
-      exclude: HASHABLE_DEPENDENCIES_EXCLUDE,
-      bundling: new Bundling(options),
-    });
-  }
-
   private static gitStrategy(options: BundlingProps): AssetCode {
     const workspacePackage = options.workspacePackage;
     let assetHash: string;
