@@ -1,21 +1,12 @@
-# From https://github.com/aws/aws-cdk/blob/95f8cef0505dd2deb8ee5e45ab98c6ab1b764b02/packages/%40aws-cdk/aws-lambda-python-alpha/lib/Dockerfile
-# The correct AWS SAM build image based on the runtime of the function will be
-# passed as build arg. The default allows to do `docker build .` when testing.
-ARG PYTHON_VERSION=3.7
-ARG IMAGE=public.ecr.aws/sam/build-python${PYTHON_VERSION}
-FROM $IMAGE
+# Build arg defaults (allow simple `docker build .` when testing)
+ARG PYTHON_VERSION=3.13
+ARG UV_VERSION
+FROM ghcr.io/astral-sh/uv:${UV_VERSION:+${UV_VERSION}-}python${PYTHON_VERSION}-bookworm-slim
 
-ARG PIP_INDEX_URL
-ARG PIP_EXTRA_INDEX_URL
-ARG HTTPS_PROXY
-ARG UV_VERSION=0.4.20
-
-ENV PIP_CACHE_DIR=/tmp/pip-cache
-ENV UV_CACHE_DIR=/tmp/uv-cache
-
-RUN mkdir /tmp/pip-cache && \
-    chmod -R 777 /tmp/pip-cache && \
-    pip install uv==$UV_VERSION && \
-    rm -rf /tmp/pip-cache/*
+RUN apt-get update && \
+    apt-get install -y rsync && \
+    rm -rf /var/lib/apt/lists/* && \
+    mkdir -p /.cache/uv && \
+    chmod 777 /.cache/uv
 
 CMD [ "python" ]
