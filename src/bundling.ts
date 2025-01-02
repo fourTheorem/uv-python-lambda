@@ -16,9 +16,9 @@ import type { BundlingOptions, ICommandHooks } from './types';
 
 export const HASHABLE_DEPENDENCIES_EXCLUDE = [
   '*.pyc',
-  "cdk/**",
-  ".git/**",
-  ".venv/**",
+  'cdk/**',
+  '.git/**',
+  '.venv/**',
 ];
 
 export const DEFAULT_ASSET_EXCLUDES = [
@@ -71,7 +71,7 @@ export interface BundlingProps extends BundlingOptions {
   /**
    * Glob patterns to exclude from asset hash fingerprinting used for source change
    * detection
-   * 
+   *
    * @default HASHABLE_DEPENDENCIES_EXCLUDE
    */
   readonly hashableAssetExclude?: string[];
@@ -82,7 +82,10 @@ export interface BundlingProps extends BundlingOptions {
  */
 export class Bundling {
   public static bundle(options: BundlingProps): AssetCode {
-    const { hashableAssetExclude = HASHABLE_DEPENDENCIES_EXCLUDE, ...bundlingOptions } = options;
+    const {
+      hashableAssetExclude = HASHABLE_DEPENDENCIES_EXCLUDE,
+      ...bundlingOptions
+    } = options;
     return Code.fromAsset(options.rootDir, {
       assetHashType: AssetHashType.SOURCE,
       exclude: hashableAssetExclude,
@@ -114,13 +117,13 @@ export class Bundling {
     const bundlingCommands = props.skip
       ? []
       : this.createBundlingCommands({
-        rootDir,
-        workspacePackage,
-        assetExcludes,
-        commandHooks,
-        inputDir: AssetStaging.BUNDLING_INPUT_DIR,
-        outputDir: AssetStaging.BUNDLING_OUTPUT_DIR,
-      });
+          rootDir,
+          workspacePackage,
+          assetExcludes,
+          commandHooks,
+          inputDir: AssetStaging.BUNDLING_INPUT_DIR,
+          outputDir: AssetStaging.BUNDLING_OUTPUT_DIR,
+        });
 
     this.image = image ?? this.createDockerImage(props);
 
