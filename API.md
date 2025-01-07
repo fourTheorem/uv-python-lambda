@@ -1466,6 +1466,7 @@ const bundlingProps: BundlingProps = { ... }
 | <code><a href="#uv-python-lambda.BundlingProps.property.rootDir">rootDir</a></code> | <code>string</code> | uv project root (workspace root). |
 | <code><a href="#uv-python-lambda.BundlingProps.property.runtime">runtime</a></code> | <code>aws-cdk-lib.aws_lambda.Runtime</code> | Lambda runtime (must be one of the Python runtimes). |
 | <code><a href="#uv-python-lambda.BundlingProps.property.architecture">architecture</a></code> | <code>aws-cdk-lib.aws_lambda.Architecture</code> | Lambda CPU architecture. |
+| <code><a href="#uv-python-lambda.BundlingProps.property.hashableAssetExclude">hashableAssetExclude</a></code> | <code>string[]</code> | Glob patterns to exclude from asset hash fingerprinting used for source change detection. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.skip">skip</a></code> | <code>boolean</code> | Skip bundling process. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.workspacePackage">workspacePackage</a></code> | <code>string</code> | uv package to use for the Lambda Function. |
 
@@ -1775,6 +1776,19 @@ public readonly architecture: Architecture;
 - *Default:* Architecture.ARM_64
 
 Lambda CPU architecture.
+
+---
+
+##### `hashableAssetExclude`<sup>Optional</sup> <a name="hashableAssetExclude" id="uv-python-lambda.BundlingProps.property.hashableAssetExclude"></a>
+
+```typescript
+public readonly hashableAssetExclude: string[];
+```
+
+- *Type:* string[]
+- *Default:* HASHABLE_DEPENDENCIES_EXCLUDE
+
+Glob patterns to exclude from asset hash fingerprinting used for source change detection.
 
 ---
 
