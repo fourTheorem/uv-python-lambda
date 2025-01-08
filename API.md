@@ -1155,6 +1155,7 @@ const bundlingOptions: BundlingOptions = { ... }
 | <code><a href="#uv-python-lambda.BundlingOptions.property.assetHashType">assetHashType</a></code> | <code>aws-cdk-lib.AssetHashType</code> | Determines how asset hash is calculated. Assets will get rebuild and uploaded only if their hash has changed. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the default container. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Which option to use to copy the source files to the docker container and output files back. |
+| <code><a href="#uv-python-lambda.BundlingOptions.property.bundlingStrategy">bundlingStrategy</a></code> | <code><a href="#uv-python-lambda.BundlingStrategy">BundlingStrategy</a></code> | Strategy for bundling. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.commandHooks">commandHooks</a></code> | <code><a href="#uv-python-lambda.ICommandHooks">ICommandHooks</a></code> | Command hooks. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | Docker image to use for bundling. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.outputPathSuffix">outputPathSuffix</a></code> | <code>string</code> | Output path suffix: the suffix for the directory into which the bundled output is written. |
@@ -1388,6 +1389,19 @@ Which option to use to copy the source files to the docker container and output 
 
 ---
 
+##### `bundlingStrategy`<sup>Optional</sup> <a name="bundlingStrategy" id="uv-python-lambda.BundlingOptions.property.bundlingStrategy"></a>
+
+```typescript
+public readonly bundlingStrategy: BundlingStrategy;
+```
+
+- *Type:* <a href="#uv-python-lambda.BundlingStrategy">BundlingStrategy</a>
+- *Default:* `BundlingStrategy.SOURCE`
+
+Strategy for bundling.
+
+---
+
 ##### `commandHooks`<sup>Optional</sup> <a name="commandHooks" id="uv-python-lambda.BundlingOptions.property.commandHooks"></a>
 
 ```typescript
@@ -1460,6 +1474,7 @@ const bundlingProps: BundlingProps = { ... }
 | <code><a href="#uv-python-lambda.BundlingProps.property.assetHashType">assetHashType</a></code> | <code>aws-cdk-lib.AssetHashType</code> | Determines how asset hash is calculated. Assets will get rebuild and uploaded only if their hash has changed. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the default container. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Which option to use to copy the source files to the docker container and output files back. |
+| <code><a href="#uv-python-lambda.BundlingProps.property.bundlingStrategy">bundlingStrategy</a></code> | <code><a href="#uv-python-lambda.BundlingStrategy">BundlingStrategy</a></code> | Strategy for bundling. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.commandHooks">commandHooks</a></code> | <code><a href="#uv-python-lambda.ICommandHooks">ICommandHooks</a></code> | Command hooks. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | Docker image to use for bundling. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.outputPathSuffix">outputPathSuffix</a></code> | <code>string</code> | Output path suffix: the suffix for the directory into which the bundled output is written. |
@@ -1696,6 +1711,19 @@ public readonly bundlingFileAccess: BundlingFileAccess;
 - *Default:* BundlingFileAccess.BIND_MOUNT
 
 Which option to use to copy the source files to the docker container and output files back.
+
+---
+
+##### `bundlingStrategy`<sup>Optional</sup> <a name="bundlingStrategy" id="uv-python-lambda.BundlingProps.property.bundlingStrategy"></a>
+
+```typescript
+public readonly bundlingStrategy: BundlingStrategy;
+```
+
+- *Type:* <a href="#uv-python-lambda.BundlingStrategy">BundlingStrategy</a>
+- *Default:* `BundlingStrategy.SOURCE`
+
+Strategy for bundling.
 
 ---
 
@@ -2984,4 +3012,26 @@ Commands are chained with `&&`.
 
 ---
 
+
+## Enums <a name="Enums" id="Enums"></a>
+
+### BundlingStrategy <a name="BundlingStrategy" id="uv-python-lambda.BundlingStrategy"></a>
+
+#### Members <a name="Members" id="Members"></a>
+
+| **Name** | **Description** |
+| --- | --- |
+| <code><a href="#uv-python-lambda.BundlingStrategy.SOURCE">SOURCE</a></code> | *No description.* |
+| <code><a href="#uv-python-lambda.BundlingStrategy.GIT">GIT</a></code> | *No description.* |
+
+---
+
+##### `SOURCE` <a name="SOURCE" id="uv-python-lambda.BundlingStrategy.SOURCE"></a>
+
+---
+
+
+##### `GIT` <a name="GIT" id="uv-python-lambda.BundlingStrategy.GIT"></a>
+
+---
 
