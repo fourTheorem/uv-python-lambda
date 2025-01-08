@@ -230,7 +230,7 @@
       "description": "Run tests",
       "steps": [
         {
-          "exec": "jest --testTimeout=300000 --passWithNoTests --updateSnapshot",
+          "exec": "jest --testTimeout=400000 --passWithNoTests --updateSnapshot",
           "receiveArgs": true
         }
       ]

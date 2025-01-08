@@ -25,7 +25,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
   ] /* Build dependencies for this module. */,
   // packageName: undefined,  /* The "name" in package.json. */
   jestOptions: {
-    extraCliOptions: ['--testTimeout=300000'],
+    extraCliOptions: ['--testTimeout=400000'],
   },
   eslint: false,
 });

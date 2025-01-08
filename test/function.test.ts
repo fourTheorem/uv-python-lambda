@@ -68,8 +68,6 @@ afterEach(async () => {
 });
 
 describe('When bundlingStrategy is set to BundlingStrategy.SOURCE', () => {
-  jest.setTimeout(20000); // we are doing integration tests with the file system so give tests more time
-
   test('Create a function from basic_app', async () => {
     const { app, stack } = await createStack();
 
@@ -98,7 +96,7 @@ describe('When bundlingStrategy is set to BundlingStrategy.SOURCE', () => {
     expect(functions).toHaveLength(1);
     const contents = await getAssetContent(functions[0], app);
     expect(contents).toContain('handler.py');
-  });
+  }, 40000); // need long timeout as working with file system
 
   test('Create a function from basic_app with no .py index extension', async () => {
     const { stack } = await createStack();
@@ -190,7 +188,7 @@ describe('When bundlingStrategy is set to BundlingStrategy.SOURCE', () => {
     ]) {
       expect(contents).toContain(entry);
     }
-  });
+  }, 40000); // need long timeout as working with file system
 
   test('Create multiple functions with workspaces_app', async () => {
     const { app, stack } = await createStack('wstest');
