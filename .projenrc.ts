@@ -1,4 +1,4 @@
-import { awscdk } from 'projen';
+import { JsonPatch, awscdk } from 'projen';
 import { JobPermission } from 'projen/lib/github/workflows-model';
 const project = new awscdk.AwsCdkConstructLibrary({
   author: 'Eoin Shanaghy',
@@ -29,6 +29,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
   },
   eslint: false,
 });
+
 const biomeWorkflow = project.github?.addWorkflow('biome');
 biomeWorkflow?.on({
   pullRequest: {
@@ -61,6 +62,16 @@ biomeWorkflow?.addJobs({
     ],
   },
 });
+
+const buildWorkflow = project.tryFindObjectFile('.github/workflows/build.yml');
+if (buildWorkflow) {
+  buildWorkflow.patch(
+    JsonPatch.add('/jobs/build/steps/0', {
+      name: 'Install uv',
+      run: 'pip install uv',
+    }),
+  );
+}
 
 project.files;
 project.synth();
