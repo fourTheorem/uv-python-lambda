@@ -49,7 +49,7 @@ biomeWorkflow?.addJobs({
         },
       },
       {
-        run: 'npm ci',
+        run: 'yarn install',
       },
       {
         run: 'npx biome check',
