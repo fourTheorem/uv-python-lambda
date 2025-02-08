@@ -1,7 +1,6 @@
 import type {
   AssetHashType,
   BundlingFileAccess,
-  DockerImage,
   DockerRunOptions,
 } from 'aws-cdk-lib/core';
 
@@ -22,15 +21,6 @@ export interface BundlingOptions extends DockerRunOptions {
    * @default - 'python' for a layer, empty string otherwise.
    */
   readonly outputPathSuffix?: string;
-
-  /**
-   * Docker image to use for bundling. If no options are provided, the default bundling image
-   * will be used. Dependencies will be installed using the default packaging commands
-   * and copied over from into the Lambda asset.
-   *
-   * @default - Default bundling image.
-   */
-  readonly image?: DockerImage;
 
   /**
    * Optional build arguments to pass to the default container. This can be used to customize

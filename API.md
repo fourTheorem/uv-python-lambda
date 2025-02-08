@@ -1156,7 +1156,6 @@ const bundlingOptions: BundlingOptions = { ... }
 | <code><a href="#uv-python-lambda.BundlingOptions.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the default container. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Which option to use to copy the source files to the docker container and output files back. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.commandHooks">commandHooks</a></code> | <code><a href="#uv-python-lambda.ICommandHooks">ICommandHooks</a></code> | Command hooks. |
-| <code><a href="#uv-python-lambda.BundlingOptions.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | Docker image to use for bundling. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.outputPathSuffix">outputPathSuffix</a></code> | <code>string</code> | Output path suffix: the suffix for the directory into which the bundled output is written. |
 
 ---
@@ -1401,23 +1400,6 @@ Command hooks.
 
 ---
 
-##### `image`<sup>Optional</sup> <a name="image" id="uv-python-lambda.BundlingOptions.property.image"></a>
-
-```typescript
-public readonly image: DockerImage;
-```
-
-- *Type:* aws-cdk-lib.DockerImage
-- *Default:* Default bundling image.
-
-Docker image to use for bundling.
-
-If no options are provided, the default bundling image
-will be used. Dependencies will be installed using the default packaging commands
-and copied over from into the Lambda asset.
-
----
-
 ##### `outputPathSuffix`<sup>Optional</sup> <a name="outputPathSuffix" id="uv-python-lambda.BundlingOptions.property.outputPathSuffix"></a>
 
 ```typescript
@@ -1461,7 +1443,6 @@ const bundlingProps: BundlingProps = { ... }
 | <code><a href="#uv-python-lambda.BundlingProps.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the default container. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Which option to use to copy the source files to the docker container and output files back. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.commandHooks">commandHooks</a></code> | <code><a href="#uv-python-lambda.ICommandHooks">ICommandHooks</a></code> | Command hooks. |
-| <code><a href="#uv-python-lambda.BundlingProps.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | Docker image to use for bundling. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.outputPathSuffix">outputPathSuffix</a></code> | <code>string</code> | Output path suffix: the suffix for the directory into which the bundled output is written. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.rootDir">rootDir</a></code> | <code>string</code> | uv project root (workspace root). |
 | <code><a href="#uv-python-lambda.BundlingProps.property.runtime">runtime</a></code> | <code>aws-cdk-lib.aws_lambda.Runtime</code> | Lambda runtime (must be one of the Python runtimes). |
@@ -1709,23 +1690,6 @@ public readonly commandHooks: ICommandHooks;
 - *Default:* do not run additional commands
 
 Command hooks.
-
----
-
-##### `image`<sup>Optional</sup> <a name="image" id="uv-python-lambda.BundlingProps.property.image"></a>
-
-```typescript
-public readonly image: DockerImage;
-```
-
-- *Type:* aws-cdk-lib.DockerImage
-- *Default:* Default bundling image.
-
-Docker image to use for bundling.
-
-If no options are provided, the default bundling image
-will be used. Dependencies will be installed using the default packaging commands
-and copied over from into the Lambda asset.
 
 ---
 
@@ -2783,9 +2747,7 @@ Bundling.bundle(options: BundlingProps)
 
 | **Name** | **Type** | **Description** |
 | --- | --- | --- |
-| <code><a href="#uv-python-lambda.Bundling.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | *No description.* |
-| <code><a href="#uv-python-lambda.Bundling.property.command">command</a></code> | <code>string[]</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.entrypoint">entrypoint</a></code> | <code>string[]</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.environment">environment</a></code> | <code>{[ key: string ]: string}</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.network">network</a></code> | <code>string</code> | *No description.* |
@@ -2797,16 +2759,6 @@ Bundling.bundle(options: BundlingProps)
 
 ---
 
-##### `image`<sup>Required</sup> <a name="image" id="uv-python-lambda.Bundling.property.image"></a>
-
-```typescript
-public readonly image: DockerImage;
-```
-
-- *Type:* aws-cdk-lib.DockerImage
-
----
-
 ##### `bundlingFileAccess`<sup>Optional</sup> <a name="bundlingFileAccess" id="uv-python-lambda.Bundling.property.bundlingFileAccess"></a>
 
 ```typescript
@@ -2814,16 +2766,6 @@ public readonly bundlingFileAccess: BundlingFileAccess;
 ```
 
 - *Type:* aws-cdk-lib.BundlingFileAccess
-
----
-
-##### `command`<sup>Optional</sup> <a name="command" id="uv-python-lambda.Bundling.property.command"></a>
-
-```typescript
-public readonly command: string[];
-```
-
-- *Type:* string[]
 
 ---
 

@@ -269,13 +269,13 @@
       },
       "steps": [
         {
-          "exec": "npx npm-check-updates@16 --upgrade --target=minor --peer --no-deprecated --dep=dev,peer,prod,optional --filter=@biomejs/biome,@types/jest,@types/node,jest,jsii-diff,jsii-pacmak,projen,ts-jest,ts-node,typescript"
+          "exec": "npx npm-check-updates@16 --upgrade --target=minor --peer --no-deprecated --dep=dev,peer,prod,optional --filter=@biomejs/biome,@types/atomic-sleep,@types/jest,@types/node,@types/object-hash,jest,jsii-diff,jsii-pacmak,projen,ts-jest,ts-node,typescript,atomic-sleep,object-hash"
         },
         {
           "exec": "yarn install --check-files"
         },
         {
-          "exec": "yarn upgrade @biomejs/biome @types/jest @types/node commit-and-tag-version jest jest-junit jsii-diff jsii-docgen jsii-pacmak jsii-rosetta jsii projen ts-jest ts-node typescript aws-cdk-lib constructs"
+          "exec": "yarn upgrade @biomejs/biome @types/atomic-sleep @types/jest @types/node @types/object-hash commit-and-tag-version jest jest-junit jsii-diff jsii-docgen jsii-pacmak jsii-rosetta jsii projen ts-jest ts-node typescript atomic-sleep object-hash aws-cdk-lib constructs"
         },
         {
           "exec": "npx projen"

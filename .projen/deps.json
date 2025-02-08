@@ -5,11 +5,19 @@
       "type": "build"
     },
     {
+      "name": "@types/atomic-sleep",
+      "type": "build"
+    },
+    {
       "name": "@types/jest",
       "type": "build"
     },
     {
       "name": "@types/node",
+      "type": "build"
+    },
+    {
+      "name": "@types/object-hash",
       "type": "build"
     },
     {
@@ -64,6 +72,14 @@
     {
       "name": "typescript",
       "type": "build"
+    },
+    {
+      "name": "atomic-sleep",
+      "type": "bundled"
+    },
+    {
+      "name": "object-hash",
+      "type": "bundled"
     },
     {
       "name": "aws-cdk-lib",

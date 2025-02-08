@@ -1,7 +1,9 @@
 import * as path from 'node:path';
+const hash = require('object-hash');
+import { runDockerContainerAndWait } from './build-container';
+
 import {
   AssetHashType,
-  AssetStaging,
   type BundlingFileAccess,
   DockerImage,
   type DockerVolume,
@@ -12,7 +14,7 @@ import {
   Code,
   type Runtime,
 } from 'aws-cdk-lib/aws-lambda';
-import type { BundlingOptions, ICommandHooks } from './types';
+import type { BundlingOptions } from './types';
 
 export const HASHABLE_DEPENDENCIES_EXCLUDE = [
   '*.pyc',
@@ -29,14 +31,13 @@ export const DEFAULT_ASSET_EXCLUDES = [
   'cdk',
 ];
 
-interface BundlingCommandOptions {
-  readonly rootDir: string;
-  readonly workspacePackage?: string;
-  readonly inputDir: string;
-  readonly outputDir: string;
-  readonly assetExcludes: string[];
-  readonly commandHooks?: ICommandHooks;
-}
+// interface BundlingCommandOptions {
+//   readonly rootDir: string;
+//   readonly workspacePackage?: string;
+//   readonly inputDir: string;
+//   readonly outputDir: string;
+//   readonly assetExcludes: string[];
+// }
 
 export interface BundlingProps extends BundlingOptions {
   /**
@@ -86,16 +87,32 @@ export class Bundling {
       hashableAssetExclude = HASHABLE_DEPENDENCIES_EXCLUDE,
       ...bundlingOptions
     } = options;
-    return Code.fromAsset(options.rootDir, {
-      assetHashType: AssetHashType.SOURCE,
-      exclude: hashableAssetExclude,
-      bundling: new Bundling(bundlingOptions),
-    });
+    const bundling = new Bundling(bundlingOptions);
+    const buildContainerId = Bundling.containerBuilders[bundling.containerBuilderKey];
+    if (!buildContainerId) {
+      throw new Error("Bundling container not found");
+    }
+
+    return Code.fromCustomCommand(
+      options.rootDir,
+      [
+        "docker",
+        "exec",
+        bundling.containerBuilderKey ?? "",  // Key is only unset in 'skip' mode
+        "/root/export.sh",
+        "--package",
+        options.workspacePackage ?? "uh-oh",  // TODO - add support for root package
+        "--output",
+        bundling.functionOutDir,
+      ],
+      {
+        assetHashType: AssetHashType.OUTPUT,
+        exclude: hashableAssetExclude,
+        // bundling: new Bundling(bundlingOptions),
+      });
   }
 
-  public readonly image: DockerImage;
   public readonly entrypoint?: string[] | undefined;
-  public readonly command: string[] | undefined;
   public readonly volumes?: DockerVolume[] | undefined;
   public readonly volumesFrom?: string[] | undefined;
   public readonly environment?: { [key: string]: string } | undefined;
@@ -105,33 +122,42 @@ export class Bundling {
   public readonly network?: string | undefined;
   public readonly bundlingFileAccess?: BundlingFileAccess | undefined;
 
+  /**
+   * Unique key for the container for this bundling configuration.
+   * Containers can be shared between multiple functions if their architecture, etc., are the same
+   */
+  private containerBuilderKey: string;
+
+  /**
+   * Unique output directory where the function code and dependencies will be written
+   */
+  private functionOutDir: string;
+
+  /**
+   * Cache of builder container IDs by key
+   */
+  private static readonly containerBuilders: Record<string, string> = {};
+
   constructor(props: BundlingProps) {
-    const {
-      rootDir,
-      workspacePackage,
-      image,
-      commandHooks,
-      assetExcludes = DEFAULT_ASSET_EXCLUDES,
-    } = props;
+    // const {
+    //   rootDir,
+    //   workspacePackage,
+    //   assetExcludes = DEFAULT_ASSET_EXCLUDES,
+    // } = props;
 
-    const bundlingCommands = props.skip
-      ? []
-      : this.createBundlingCommands({
-          rootDir,
-          workspacePackage,
-          assetExcludes,
-          commandHooks,
-          inputDir: AssetStaging.BUNDLING_INPUT_DIR,
-          outputDir: AssetStaging.BUNDLING_OUTPUT_DIR,
-        });
+    // inputdir: assetStaging.BUNDLING_INPUT_DIR,
+    // outputDir: AssetStaging.BUNDLING_OUTPUT_DIR,
 
-    this.image = image ?? this.createDockerImage(props);
 
-    this.command = props.command ?? [
-      'bash',
-      '-c',
-      bundlingCommands.join(' && '),
-    ];
+    // const bundlingCommands = props.skip
+    //   ? []
+    //   : this.createBundlingCommands({
+    //     rootDir,
+    //     workspacePackage,
+    //     assetExcludes,
+    //     commandHooks,
+    //   });
+
     this.entrypoint = props.entrypoint;
     this.volumes = props.volumes;
     this.volumesFrom = props.volumesFrom;
@@ -141,58 +167,59 @@ export class Bundling {
     this.securityOpt = props.securityOpt;
     this.network = props.network;
     this.bundlingFileAccess = props.bundlingFileAccess;
-  }
 
-  private createDockerImage(props: BundlingProps): DockerImage {
     // If skip is true then don't call DockerImage.fromBuild as that calls dockerExec.
     // Return a dummy object of the right type as it's not going to be used.
     if (props.skip) {
-      return new DockerImage('skipped');
+      this.containerBuilderKey = "NONE";
+      this.functionOutDir = "NONE";
+      return;
     }
 
-    return DockerImage.fromBuild(path.resolve(__dirname, '..', 'resources'), {
-      buildArgs: {
-        ...props.buildArgs,
-        IMAGE: props.runtime.bundlingImage.image,
-      },
-      platform: (props.architecture ?? Architecture.ARM_64).dockerPlatform,
-    });
+    const hashableProperties = {
+      runtime: props.runtime,
+      architecture: props.architecture,
+      buildArgs: props.buildArgs,
+      rootDir: props.rootDir,
+    };
+
+    // Create a hash of the props to use as a key for the build container cache
+    this.containerBuilderKey = `uv-bundling-${hash(hashableProperties)}`;
+    this.functionOutDir = `${this.containerBuilderKey}_${props.workspacePackage ?? "$$root"}`;
+
+    const existingBuilder = Bundling.containerBuilders[this.containerBuilderKey];
+    if (!existingBuilder) {
+      const buildImage = DockerImage.fromBuild(path.resolve(__dirname, '..', 'resources'), {
+        buildArgs: {
+          ...props.buildArgs,
+          IMAGE: props.runtime.bundlingImage.image,
+          IMAGE_ARCH: props.architecture === Architecture.X86_64 ? 'x86_64' : 'arm64',
+        },
+        platform: (props.architecture ?? Architecture.ARM_64).dockerPlatform,
+      });
+
+      // Spawn a docker run process in -d daemon mode using buildImage.image
+      const dockerArgs = [
+        "run",
+        "-d",
+        "--cap-add=SYS_ADMIN",  // required for overlay fs
+        "--name",
+        this.containerBuilderKey,
+        "--rm",
+        "-v",
+        `${process.env.CDK_OUTDIR}/${this.functionOutDir}:/uvbuild`,
+        "-v",
+        `${props.rootDir}:/src`,
+        buildImage.image,
+      ]
+
+      const containerId = runDockerContainerAndWait(
+        this.containerBuilderKey,
+        dockerArgs, "Builder container is ready and waiting"
+      );
+
+      Bundling.containerBuilders[this.containerBuilderKey] = containerId;
+    }
   }
 
-  private createBundlingCommands(options: BundlingCommandOptions): string[] {
-    const excludeArgs = options.assetExcludes.map(
-      (exclude) => `--exclude="${exclude}"`,
-    );
-    const workspacePackage = options.workspacePackage;
-    const uvCommonArgs = `--directory ${options.outputDir}`;
-    const uvPackageArgs = workspacePackage
-      ? `--package ${workspacePackage}`
-      : '';
-    const reqsFile = `/tmp/requirements${workspacePackage || ''}.txt`;
-    const commands = [];
-    commands.push(
-      ...(options.commandHooks?.beforeBundling(
-        options.inputDir,
-        options.outputDir,
-      ) ?? []),
-    );
-    commands.push(
-      ...[
-        `rsync -rLv ${excludeArgs.join(' ')} ${options.inputDir}/ ${options.outputDir}`,
-        `cd ${options.outputDir}`, // uv pip install needs to be run from here for editable deps to relative paths to be resolved
-        `uv sync ${uvCommonArgs} ${uvPackageArgs} --python-preference=only-system --compile-bytecode --no-dev --frozen --no-editable --link-mode=copy`,
-        `uv export ${uvCommonArgs} ${uvPackageArgs} --no-dev --frozen --no-editable > ${reqsFile}`,
-        `uv pip install -r ${reqsFile} --target ${options.outputDir} --reinstall --compile-bytecode --link-mode=copy`,
-        `rm -rf ${options.outputDir}/.venv`,
-      ],
-    );
-    commands.push(
-      ...(options.commandHooks?.afterBundling(
-        options.inputDir,
-        options.outputDir,
-      ) ?? []),
-    );
-
-    return commands;
-  }
 }

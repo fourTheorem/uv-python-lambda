@@ -35,8 +35,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@types/atomic-sleep": "^1.0.1",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.13.1",
+    "@types/object-hash": "^3.0.6",
     "aws-cdk-lib": "2.161.1",
     "commit-and-tag-version": "^12",
     "constructs": "10.3.0",
@@ -56,6 +58,14 @@
     "aws-cdk-lib": "^2.161.1",
     "constructs": "^10.3.0"
   },
+  "dependencies": {
+    "atomic-sleep": "^1.0.0",
+    "object-hash": "^3.0.0"
+  },
+  "bundledDependencies": [
+    "atomic-sleep",
+    "object-hash"
+  ],
   "keywords": [
     "cdk"
   ],
