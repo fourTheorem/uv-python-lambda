@@ -11,9 +11,9 @@ import { spawn, exec, spawnSync, execSync } from "node:child_process";
  */
 export function runDockerContainerAndWait(name: string, args: string[], logLine: string): string {
   // kill any old container that might be running from previous builds
-  // spawnSync("docker", ["rm", "-f", name])  TODO
+  spawnSync("docker", ["rm", "-f", name])
   // Start the container in detached mode
-  console.log("Spawning Docker container...", name, args);
+  console.log("Spawning Docker container...", name, args, logLine);
   const dockerRun = spawnSync("docker", args);
   if (dockerRun.error) {
     console.error(`Failed to start Docker process: ${dockerRun.error}`);
@@ -32,9 +32,10 @@ export function runDockerContainerAndWait(name: string, args: string[], logLine:
   // Wait for the container to be running
   console.log("Waiting for container to be ready...");
   waitForContainer(containerId);
-  console.log("Container is ready.  Waiting for log line...");
-  waitForLogLine(containerId, logLine);
-  console.log("Log line found.");
+  console.log("Container is ready");
+  // waitForLogLine(containerId, logLine);
+  // console.log("Log line found.");
+  // TODO - rm -f container if it didn't run successfully
   return containerId;
 }
 
@@ -48,6 +49,7 @@ function waitForContainer(containerId: string) {
     const stdout = execSync(`docker inspect -f '{{.State.Running}}' ${containerId}`)
     if (stdout.toString().trim() === "true") {
       console.log(`Container ${containerId} is running.`);
+      sleep(60000);
       return;
     }
     console.log(`Container ${containerId} is not yet running.`);
@@ -62,32 +64,33 @@ function waitForContainer(containerId: string) {
  * @param containerId - The container ID.
  * @param logLine - The line to wait for.
  */
-function waitForLogLine(containerId: string, logLine: string) {
-  let attempts = 60;
-  while (attempts > 0) {
-    const logProcess = spawnSync("docker", ["logs", containerId]);
-    if (logProcess.error) {
-      const message = `Failed to get container logs: ${containerId} ${logProcess.error}`;
-      console.error(message);
-      throw new Error(message);
-    }
-    if (logProcess.status !== 0) {
-      const message = `Docker process exited with code ${logProcess.status}, ${logProcess.stderr.toString()}`;
-      console.error(message);
-      throw new Error(message);
-    }
+// function waitForLogLine(containerId: string, logLine: string) {
+//   let attempts = 60;
+//   while (attempts > 0) {
+//     console.log(`Checking logs for ${containerId}... ${attempts} attempts remaining.`);
+//     const logProcess = spawnSync("docker", ["logs", containerId]);
+//     if (logProcess.error) {
+//       const message = `Failed to get container logs: ${containerId} ${logProcess.error}`;
+//       console.error(message);
+//       throw new Error(message);
+//     }
+//     if (logProcess.status !== 0) {
+//       const message = `Docker process exited with code ${logProcess.status}, ${logProcess.stderr.toString()}`;
+//       console.error(message);
+//       throw new Error(message);
+//     }
 
-    const logs = logProcess.stdout.toString();
-    console.log('LOGS', logs);
-    if (logs.includes(logLine)) {
-      return;
-    }
-    attempts--;
-    sleep(1000);
-  }
+//     const logs = logProcess.stdout.toString();
+//     console.log('LOGS', logs);
+//     if (logs.includes(logLine)) {
+//       return;
+//     }
+//     attempts--;
+//     sleep(1000);
+//   }
 
-  throw new Error(`Log line not found: ${logLine}`);
-}
+//   throw new Error(`Log line not found: ${logLine}`);
+// }
 
 /**
  * Stops the container.

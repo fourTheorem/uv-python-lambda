@@ -29,8 +29,12 @@ const project = new awscdk.AwsCdkConstructLibrary({
   jestOptions: {
     extraCliOptions: ['--testTimeout=300000'],
   },
+  gitignore: [
+    ".vscode/",
+  ],
   eslint: false,
 });
+
 const biomeWorkflow = project.github?.addWorkflow('biome');
 biomeWorkflow?.on({
   pullRequest: {

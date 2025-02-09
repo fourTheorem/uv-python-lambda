@@ -12,12 +12,11 @@ rm -f $LOCK_FILE
 # Changing the default UV_LINK_MODE silences warnings about not being able to use hard links
 # since the cache and sync target may be on separate file systems.
 export UV_LINK_MODE=copy
-mkdir -p /src/uvbuild/uvcache
+mkdir -p /uvbuild/uvcache
 mkdir -p /root/.cache
-ln -sf /src/uvbuild/uvcache /root/.cache/uv
+ln -sf /uvbuild/uvcache /root/.cache/uv
 
 # Set up overlay filesystem
-#mkdir -p /src/uvbuild/overlay/upper /src/uvbuild/overlay/work /src/uvbuild/overlay/merged
 mkdir -p /tmp/overlay
 mount -t tmpfs tmpfs /tmp/overlay
 mkdir -p /tmp/overlay/{upper,work,merged}

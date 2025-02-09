@@ -17,7 +17,7 @@ then
 	exit 1
 fi
 
-opts=$(getopt --name "$NAME" --options hpo:vd --longoptions help,package,output:,verbose,debug -- "$@") || print_help
+opts=$(getopt --name "$NAME" --options hp:o:vd --longoptions help,package:,output:,verbose,debug -- "$@") || print_help
 eval set -- "$opts"
 
 declare package="" output="" verbose=0 debug=0
@@ -25,8 +25,8 @@ while (($#))
 do
 	case $1 in
 		-h|--help)    print_help;;
-		-p|--package)    package=$2; shift;;
-		-o|--output)     output=$2; shift;;
+		-p|--package) package=$2; shift;;
+		-o|--output)  output=$2; shift;;
 		-v|--verbose) ((++verbose));;
 		-d|--debug)   debug=1;;
 		--)           shift; break;;

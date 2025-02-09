@@ -15,6 +15,7 @@ import {
   type Runtime,
 } from 'aws-cdk-lib/aws-lambda';
 import type { BundlingOptions } from './types';
+import { mkdirSync } from 'node:fs';
 
 export const HASHABLE_DEPENDENCIES_EXCLUDE = [
   '*.pyc',
@@ -93,8 +94,11 @@ export class Bundling {
       throw new Error("Bundling container not found");
     }
 
+    const hostFunctionOutputDir = `${process.env.CDK_OUTDIR}/${bundling.containerBuilderKey}/${bundling.functionOutDir}`;
+    // mkdirSync(hostFunctionOutputDir, { recursive: true });
+
     return Code.fromCustomCommand(
-      options.rootDir,
+      hostFunctionOutputDir,
       [
         "docker",
         "exec",
@@ -103,10 +107,10 @@ export class Bundling {
         "--package",
         options.workspacePackage ?? "uh-oh",  // TODO - add support for root package
         "--output",
-        bundling.functionOutDir,
+        `/uvbuild/${bundling.functionOutDir}/`,
       ],
       {
-        assetHashType: AssetHashType.OUTPUT,
+        assetHashType: AssetHashType.SOURCE,
         exclude: hashableAssetExclude,
         // bundling: new Bundling(bundlingOptions),
       });
@@ -185,8 +189,7 @@ export class Bundling {
 
     // Create a hash of the props to use as a key for the build container cache
     this.containerBuilderKey = `uv-bundling-${hash(hashableProperties)}`;
-    this.functionOutDir = `${this.containerBuilderKey}_${props.workspacePackage ?? "$$root"}`;
-
+    this.functionOutDir = props.workspacePackage ?? "";
     const existingBuilder = Bundling.containerBuilders[this.containerBuilderKey];
     if (!existingBuilder) {
       const buildImage = DockerImage.fromBuild(path.resolve(__dirname, '..', 'resources'), {
@@ -194,9 +197,14 @@ export class Bundling {
           ...props.buildArgs,
           IMAGE: props.runtime.bundlingImage.image,
           IMAGE_ARCH: props.architecture === Architecture.X86_64 ? 'x86_64' : 'arm64',
+          PYTHON_VERSION: props.runtime.name.slice(6),
+          BUNDLING_IMAGE: props.runtime.bundlingImage.image,
         },
         platform: (props.architecture ?? Architecture.ARM_64).dockerPlatform,
       });
+
+      const hostUvBuildDir = `${process.env.CDK_OUTDIR}/${this.containerBuilderKey}`;
+      mkdirSync(hostUvBuildDir, { recursive: true });
 
       // Spawn a docker run process in -d daemon mode using buildImage.image
       const dockerArgs = [
@@ -205,9 +213,8 @@ export class Bundling {
         "--cap-add=SYS_ADMIN",  // required for overlay fs
         "--name",
         this.containerBuilderKey,
-        "--rm",
         "-v",
-        `${process.env.CDK_OUTDIR}/${this.functionOutDir}:/uvbuild`,
+        `${hostUvBuildDir}:/uvbuild`,
         "-v",
         `${props.rootDir}:/src`,
         buildImage.image,
