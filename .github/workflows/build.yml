@@ -14,6 +14,8 @@ jobs:
     env:
       CI: "true"
     steps:
+      - name: Install uv
+        run: pip install uv
       - name: Checkout
         uses: actions/checkout@v4
         with:

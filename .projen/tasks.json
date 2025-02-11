@@ -230,7 +230,7 @@
       "description": "Run tests",
       "steps": [
         {
-          "exec": "jest --testTimeout=300000 --passWithNoTests --updateSnapshot",
+          "exec": "jest --testTimeout=400000 --passWithNoTests --updateSnapshot",
           "receiveArgs": true
         }
       ]
@@ -269,13 +269,13 @@
       },
       "steps": [
         {
-          "exec": "npx npm-check-updates@16 --upgrade --target=minor --peer --no-deprecated --dep=dev,peer,prod,optional --filter=@biomejs/biome,@types/jest,@types/node,jest,jsii-diff,jsii-pacmak,projen,ts-jest,ts-node,typescript"
+          "exec": "npx npm-check-updates@16 --upgrade --target=minor --peer --no-deprecated --dep=dev,peer,prod,optional --filter=@biomejs/biome,@types/fs-extra,@types/jest,@types/node,fs-extra,jest,jsii-diff,jsii-pacmak,projen,ts-jest,ts-node,typescript"
         },
         {
           "exec": "yarn install --check-files"
         },
         {
-          "exec": "yarn upgrade @biomejs/biome @types/jest @types/node commit-and-tag-version jest jest-junit jsii-diff jsii-docgen jsii-pacmak jsii-rosetta jsii projen ts-jest ts-node typescript aws-cdk-lib constructs"
+          "exec": "yarn upgrade @biomejs/biome @types/fs-extra @types/jest @types/node commit-and-tag-version fs-extra jest jest-junit jsii-diff jsii-docgen jsii-pacmak jsii-rosetta jsii projen ts-jest ts-node typescript aws-cdk-lib constructs"
         },
         {
           "exec": "npx projen"

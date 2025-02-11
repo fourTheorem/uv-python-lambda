@@ -1,3 +1,5 @@
+import { execSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import {
   AssetHashType,
@@ -13,6 +15,7 @@ import {
   type Runtime,
 } from 'aws-cdk-lib/aws-lambda';
 import type { BundlingOptions, ICommandHooks } from './types';
+import { BundlingStrategy } from './types';
 
 export const HASHABLE_DEPENDENCIES_EXCLUDE = [
   '*.pyc',
@@ -86,11 +89,67 @@ export class Bundling {
       hashableAssetExclude = HASHABLE_DEPENDENCIES_EXCLUDE,
       ...bundlingOptions
     } = options;
+    switch (options.bundlingStrategy) {
+      case BundlingStrategy.GIT:
+        return Bundling.gitStrategy(bundlingOptions);
+      default:
+        return Bundling.sourceStrategy(bundlingOptions);
+    }
+  }
+
+  /**
+   * Uses the AssetHashType.SOURCE strategy to calculate the asset hash.
+   *
+   * If there are multiple functions being created from a workspace they will all be rebuilt if the source changes.
+   *
+   * @param options
+   * @private
+   */
+  private static sourceStrategy(options: BundlingProps): AssetCode {
     return Code.fromAsset(options.rootDir, {
       assetHashType: AssetHashType.SOURCE,
-      exclude: hashableAssetExclude,
-      bundling: new Bundling(bundlingOptions),
+      exclude: options.hashableAssetExclude,
+      bundling: new Bundling(options),
     });
+  }
+
+  private static gitStrategy(options: BundlingProps): AssetCode {
+    const workspacePackage = options.workspacePackage;
+    let assetHash: string;
+
+    if (!workspacePackage) {
+      assetHash = Bundling.gitHash(options.rootDir);
+    } else {
+      const uvCommand = `cd ${options.rootDir} && uv export --package ${workspacePackage} --frozen --no-editable --no-dev --no-header`;
+      const dependencies = execSync(uvCommand).toString();
+      // This includes the current workspacePackage
+      const workspaceDependencies = extractWorkspaceDependencies(dependencies);
+      const hash = createHash('sha256').update(dependencies);
+      for (const dependency of workspaceDependencies) {
+        hash.update(Bundling.gitHash(path.join(options.rootDir, dependency)));
+      }
+      assetHash = hash.digest('hex');
+    }
+
+    return Code.fromAsset(options.rootDir, {
+      assetHashType: AssetHashType.CUSTOM,
+      assetHash,
+      exclude: options.hashableAssetExclude,
+      bundling: new Bundling(options),
+    });
+  }
+
+  private static gitHash(path: string): string {
+    const gitCommands = [
+      `cd ${path}`,
+      'git log -1 --format=%H -- .', // find the hash of the last commit that changed the files in the directory
+      'git diff -- .', // get the diff of the files in the directory and below
+    ];
+    const gitCommand = gitCommands.join(' && ');
+    const status = execSync(gitCommand).toString().trim();
+    const assetHash = createHash('sha256').update(status).digest('hex');
+
+    return assetHash;
   }
 
   public readonly image: DockerImage;
@@ -195,4 +254,25 @@ export class Bundling {
 
     return commands;
   }
+}
+
+function extractWorkspaceDependencies(content: string): string[] {
+  // Split content into lines and filter out empty lines
+  const lines = content.split('\n').filter((line) => line.trim());
+
+  // Regular expression to match package lines
+  // Matches lines containing package==version followed by hash(es)
+  const packageLineRegex =
+    /^[\w-]+==[0-9]+\.[0-9]+(\.[0-9]+)?([a-z0-9.]+)?\s*(\\|\s|$)/;
+
+  // Filter out package lines and hash lines
+  return lines.filter((line) => {
+    // Skip hash lines
+    if (line.trim().startsWith('--hash=')) {
+      return false;
+    }
+
+    // Keep lines that don't match package pattern
+    return !packageLineRegex.test(line);
+  });
 }

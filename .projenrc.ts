@@ -1,4 +1,4 @@
-import { awscdk } from 'projen';
+import { JsonPatch, awscdk } from 'projen';
 import { JobPermission } from 'projen/lib/github/workflows-model';
 const project = new awscdk.AwsCdkConstructLibrary({
   author: 'Eoin Shanaghy',
@@ -18,13 +18,18 @@ const project = new awscdk.AwsCdkConstructLibrary({
   // cdkDependencies: [],     /* CDK dependencies of this module. */
   // deps: [],                /* Runtime dependencies of this module. */
   // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */
-  devDeps: ['@biomejs/biome'] /* Build dependencies for this module. */,
+  devDeps: [
+    '@biomejs/biome',
+    'fs-extra',
+    '@types/fs-extra',
+  ] /* Build dependencies for this module. */,
   // packageName: undefined,  /* The "name" in package.json. */
   jestOptions: {
-    extraCliOptions: ['--testTimeout=300000'],
+    extraCliOptions: ['--testTimeout=400000'],
   },
   eslint: false,
 });
+
 const biomeWorkflow = project.github?.addWorkflow('biome');
 biomeWorkflow?.on({
   pullRequest: {
@@ -57,6 +62,16 @@ biomeWorkflow?.addJobs({
     ],
   },
 });
+
+const buildWorkflow = project.tryFindObjectFile('.github/workflows/build.yml');
+if (buildWorkflow) {
+  buildWorkflow.patch(
+    JsonPatch.add('/jobs/build/steps/0', {
+      name: 'Install uv',
+      run: 'pip install uv',
+    }),
+  );
+}
 
 project.files;
 project.synth();
