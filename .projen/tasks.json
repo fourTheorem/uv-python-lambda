@@ -269,7 +269,7 @@
       },
       "steps": [
         {
-          "exec": "npx npm-check-updates@16 --upgrade --target=minor --peer --no-deprecated --dep=dev,peer,prod,optional --filter=@biomejs/biome,@types/jest,@types/node,@types/object-hash,jest,jsii-diff,jsii-pacmak,projen,ts-jest,ts-node,typescript,object-hash"
+          "exec": "npx npm-check-updates@20 --upgrade --target=minor --peer --no-deprecated --dep=dev,peer,prod,optional --filter=@biomejs/biome,@types/jest,@types/node,@types/object-hash,jest,jsii-diff,jsii-pacmak,projen,ts-jest,ts-node,typescript,object-hash"
         },
         {
           "exec": "yarn install --check-files"
