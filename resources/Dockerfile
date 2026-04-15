@@ -10,7 +10,7 @@ FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 FROM ${BUNDLING_IMAGE}
 
 COPY --from=uv /uv /uvx /bin/
-COPY *.sh /root
-RUN chmod +x /root/*.sh
-WORKDIR /root
-ENTRYPOINT [ "/root/entrypoint.sh" ]
+COPY *.sh /opt/uv-python-lambda/
+RUN chmod +x /opt/uv-python-lambda/*.sh
+WORKDIR /opt/uv-python-lambda
+ENTRYPOINT [ "/opt/uv-python-lambda/entrypoint.sh" ]

@@ -34,6 +34,7 @@ export const DEFAULT_ASSET_EXCLUDES = [
 
 export const DEFAULT_UV_VERSION = '0.5.27';
 
+const BUILDER_TOOL_DIR = '/opt/uv-python-lambda';
 const BUILDER_READY_LOG = 'Builder container is ready and waiting';
 const BUILDER_NOFILE_LIMIT = '1048576:1048576';
 
@@ -173,6 +174,7 @@ export class Bundling {
     const buildImage = this.createDockerImage();
     const hostUvBuildDir = path.join(cdkOutDir, this.containerBuilderKey);
     const hostRootDir = path.resolve(this.props.rootDir);
+    const builderUser = getDockerUserArg();
 
     mkdirSync(hostUvBuildDir, { recursive: true });
 
@@ -186,6 +188,10 @@ export class Bundling {
       '--name',
       this.containerBuilderName,
     ];
+
+    if (builderUser) {
+      dockerArgs.push('--user', builderUser);
+    }
 
     for (const [name, value] of this.getBuilderEnvironmentEntries()) {
       dockerArgs.push('--env', `${name}=${value}`);
@@ -215,6 +221,11 @@ export class Bundling {
 
     const containerOutputDir = this.getContainerFunctionOutputDir();
     const command = ['docker', 'exec'];
+    const builderUser = getDockerUserArg();
+
+    if (builderUser) {
+      command.push('--user', builderUser);
+    }
 
     for (const [name, value] of this.getBuilderEnvironmentEntries()) {
       command.push('-e', `${name}=${value}`);
@@ -222,7 +233,7 @@ export class Bundling {
 
     command.push(
       this.containerBuilderName,
-      '/root/export.sh',
+      `${BUILDER_TOOL_DIR}/export.sh`,
       '--output',
       containerOutputDir,
     );
@@ -333,4 +344,15 @@ function getBuilderEnvironment(
     UV_PYTHON_LAMBDA_NOFILE_LIMIT: BUILDER_NOFILE_LIMIT.split(':')[0],
     ...environment,
   };
+}
+
+function getDockerUserArg() {
+  if (
+    typeof process.getuid !== 'function' ||
+    typeof process.getgid !== 'function'
+  ) {
+    return undefined;
+  }
+
+  return `${process.getuid()}:${process.getgid()}`;
 }

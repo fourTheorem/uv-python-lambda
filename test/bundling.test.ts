@@ -3,12 +3,44 @@ import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Bundling, DEFAULT_UV_VERSION } from '../src/bundling';
 import type { ICommandHooks } from '../src/types';
 
+type BundlingModule = typeof import('../src/bundling');
+
 function decodeCommands(value: string) {
   return JSON.parse(Buffer.from(value, 'base64').toString('utf8')) as string[];
 }
 
+function getExpectedDockerUserArg() {
+  if (
+    typeof process.getuid !== 'function' ||
+    typeof process.getgid !== 'function'
+  ) {
+    throw new Error('process.getuid() and process.getgid() are required');
+  }
+
+  return `${process.getuid()}:${process.getgid()}`;
+}
+
+function loadBundlingModule(ensureBuilderContainerMock: jest.Mock) {
+  let loadedModule: BundlingModule | undefined;
+
+  jest.isolateModules(() => {
+    jest.doMock('../src/build-container', () => ({
+      BUILDER_LABEL: 'com.fourtheorem.uv-python-lambda.builder',
+      ensureBuilderContainer: ensureBuilderContainerMock,
+    }));
+    loadedModule = require('../src/bundling') as BundlingModule;
+  });
+
+  if (!loadedModule) {
+    throw new Error('Failed to load bundling module');
+  }
+
+  return loadedModule;
+}
+
 describe('Bundling', () => {
   afterEach(() => {
+    jest.resetModules();
     jest.restoreAllMocks();
   });
 
@@ -104,6 +136,23 @@ describe('Bundling', () => {
     expect(command).toContain('UV_PYTHON_LAMBDA_NOFILE_LIMIT=1048576');
   });
 
+  test('runs export commands as the host user when uid and gid are available', () => {
+    const bundling = new Bundling({
+      rootDir: '/tmp/project-user',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+      workspacePackage: 'app',
+    });
+
+    const command = Reflect.get(bundling, 'createBundlingCommand').call(
+      bundling,
+    ) as string[];
+
+    expect(command).toContain('--user');
+    expect(command).toContain(getExpectedDockerUserArg());
+    expect(command).toContain('/opt/uv-python-lambda/export.sh');
+  });
+
   test('builds the builder image with the default uv version', () => {
     const fromBuildSpy = jest
       .spyOn(DockerImage, 'fromBuild')
@@ -186,6 +235,36 @@ describe('Bundling', () => {
 
     expect(Reflect.get(defaultBundling, 'containerBuilderKey')).not.toEqual(
       Reflect.get(overriddenBundling, 'containerBuilderKey'),
+    );
+  });
+
+  test('starts the builder container as the host user when uid and gid are available', () => {
+    const ensureBuilderContainerMock = jest.fn();
+    const bundlingModule = loadBundlingModule(ensureBuilderContainerMock);
+    const fromBuildSpy = jest
+      .spyOn(DockerImage, 'fromBuild')
+      .mockReturnValue({ image: 'mock-image' } as DockerImage);
+
+    const bundling = new bundlingModule.Bundling({
+      rootDir: '/tmp/project-run-user',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+    });
+
+    Reflect.get(bundling, 'ensureBuilderReady').call(
+      bundling,
+      '/tmp/cdk-run-user',
+    );
+
+    expect(fromBuildSpy).toHaveBeenCalled();
+    expect(ensureBuilderContainerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: expect.arrayContaining([
+          '--user',
+          getExpectedDockerUserArg(),
+          'mock-image',
+        ]),
+      }),
     );
   });
 });

@@ -15,7 +15,7 @@ NAME=${0##*/}
 #
 # - Warm-cache package installs are the main fast path. They benefit from
 #   cache reuse across functions and synth runs in the same process.
-# - Hardlink mode is preferred because /root/.cache/uv and /uvbuild live on the
+# - Hardlink mode is preferred because $HOME/.cache/uv and /uvbuild live on the
 #   same mounted filesystem. Hardlinks avoid the extra copy work and file-handle
 #   churn that `copy` mode caused on large dependency trees.
 # - Workspace package handling copies only the local package directories that
@@ -26,6 +26,7 @@ export LOCK_FILE=/uvbuild/uv-python-lambda.lock
 export UV_LINK_MODE=hardlink
 export UV_NO_INSTALLER_METADATA=1
 export UV_PYTHON_LAMBDA_NOFILE_LIMIT="${UV_PYTHON_LAMBDA_NOFILE_LIMIT:-1048576}"
+export HOME=/tmp/uv-python-lambda-home
 
 # Raise the per-process FD limit inside the container. The builder
 # container itself is already started with a large nofile ulimit, this mirrors

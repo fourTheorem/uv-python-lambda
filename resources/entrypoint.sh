@@ -12,14 +12,15 @@ export LOCK_FILE=/uvbuild/uv-python-lambda.lock
 export UV_LINK_MODE=hardlink
 export UV_NO_INSTALLER_METADATA=1
 export UV_PYTHON_LAMBDA_NOFILE_LIMIT="${UV_PYTHON_LAMBDA_NOFILE_LIMIT:-1048576}"
+export HOME=/tmp/uv-python-lambda-home
 
 ulimit -n "$UV_PYTHON_LAMBDA_NOFILE_LIMIT"
 
 rm -f "$LOCK_FILE"
 
 mkdir -p /uvbuild/uvcache
-mkdir -p /root/.cache
-ln -sf /uvbuild/uvcache /root/.cache/uv
+mkdir -p "$HOME/.cache"
+ln -sf /uvbuild/uvcache "$HOME/.cache/uv"
 
 touch "$LOCK_FILE"
 
