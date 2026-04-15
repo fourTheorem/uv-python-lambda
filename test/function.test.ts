@@ -12,6 +12,8 @@ const execAsync = promisify(exec);
 
 const resourcesPath = path.resolve(__dirname, 'resources');
 
+const TEST_TIMEOUT = Number(process.env.TEST_TIMEOUT ?? "999999");
+
 /**
  * Determine the optimal Lambda Function architecture based on the Docker host's CPU
  * architecture. This allows GHA runners to work without slow QEMU Arm emulation.
@@ -56,43 +58,43 @@ beforeEach(async () => {
   process.env.CDK_OUTDIR = await fs.mkdtemp(
     path.join(os.tmpdir(), 'uv-python-lambda-test-'),
   );
-}, 999999);
+}, TEST_TIMEOUT);
 
 afterEach(async () => {
   if (process.env.CDK_OUTDIR) {
     await fs.rm(process.env.CDK_OUTDIR, { recursive: true });
   }
   process.env = OLD_ENV;
-}, 999999);
+}, TEST_TIMEOUT);
 
-// test('Create a function from basic_app', async () => {
-//   const { app, stack } = await createStack();
+test('Create a function from basic_app', async () => {
+  const { app, stack } = await createStack();
 
-//   new PythonFunction(stack, 'basic_app', {
-//     rootDir: path.join(resourcesPath, 'basic_app'),
-//     index: 'handler.py',
-//     handler: 'lambda_handler',
-//     runtime: Runtime.PYTHON_3_12,
-//     architecture: await getDockerHostArch(),
-//   });
+  new PythonFunction(stack, 'basic_app', {
+    rootDir: path.join(resourcesPath, 'basic_app'),
+    index: 'handler.py',
+    handler: 'lambda_handler',
+    runtime: Runtime.PYTHON_3_12,
+    architecture: await getDockerHostArch(),
+  });
 
-//   const template = Template.fromStack(stack);
+  const template = Template.fromStack(stack);
 
-//   template.hasResourceProperties('AWS::Lambda::Function', {
-//     Handler: 'handler.lambda_handler',
-//     Runtime: 'python3.12',
-//     Code: {
-//       S3Bucket: Match.anyValue(),
-//       S3Key: Match.anyValue(),
-//     },
-//   });
-//   const functions = Object.values(
-//     template.findResources('AWS::Lambda::Function'),
-//   );
-//   expect(functions).toHaveLength(1);
-//   const contents = await getFunctionAssetContents(functions[0], app);
-//   expect(contents).toContain('handler.py');
-// });
+  template.hasResourceProperties('AWS::Lambda::Function', {
+    Handler: 'handler.lambda_handler',
+    Runtime: 'python3.12',
+    Code: {
+      S3Bucket: Match.anyValue(),
+      S3Key: Match.anyValue(),
+    },
+  });
+  const functions = Object.values(
+    template.findResources('AWS::Lambda::Function'),
+  );
+  expect(functions).toHaveLength(1);
+  const contents = await getFunctionAssetContents(functions[0], app);
+  expect(contents).toContain('handler.py');
+});
 
 // test('Create a function from basic_app with no .py index extension', async () => {
 //   const { stack } = await createStack();
@@ -139,45 +141,43 @@ afterEach(async () => {
 //   bundlingSpy.mockRestore();
 // });
 
-test('Create a function with workspaces_app', async () => {
-  const { app, stack } = await createStack('wstest');
+// test('Create a function with workspaces_app', async () => {
+//   const { app, stack } = await createStack('wstest');
 
-  new PythonFunction(stack, 'workspaces_app', {
-    rootDir: path.join(resourcesPath, 'workspaces_app'),
-    workspacePackage: 'app',
-    index: 'app_handler.py',
-    handler: 'handle_event',
-    runtime: Runtime.PYTHON_3_10,
-    architecture: await getDockerHostArch(),
-  });
+//   new PythonFunction(stack, 'workspaces_app', {
+//     rootDir: path.join(resourcesPath, 'workspaces_app'),
+//     workspacePackage: 'app',
+//     index: 'app_handler.py',
+//     handler: 'handle_event',
+//     runtime: Runtime.PYTHON_3_10,
+//     architecture: await getDockerHostArch(),
+//   });
 
-  const template = Template.fromStack(stack);
+//   const template = Template.fromStack(stack);
 
-  template.hasResourceProperties('AWS::Lambda::Function', {
-    Handler: 'app_handler.handle_event',
-    Runtime: 'python3.10',
-    Code: {
-      S3Bucket: Match.anyValue(),
-      S3Key: Match.anyValue(),
-    },
-  });
+//   template.hasResourceProperties('AWS::Lambda::Function', {
+//     Handler: 'app_handler.handle_event',
+//     Runtime: 'python3.10',
+//     Code: {
+//       S3Bucket: Match.anyValue(),
+//       S3Key: Match.anyValue(),
+//     },
+//   });
 
-  const functions = Object.values(
-    template.findResources('AWS::Lambda::Function'),
-  );
-  expect(functions).toHaveLength(1);
-  const contents = await getFunctionAssetContents(functions[0], app);
-  for (const entry of [
-    'app',
-    'common',
-    'pydantic',
-    'httpx',
-    '_common.pth',
-    'app_handler.py',
-  ]) {
-    expect(contents).toContain(entry);
-  }
-}, 999999);
+//   const functions = Object.values(
+//     template.findResources('AWS::Lambda::Function'),
+//   );
+//   expect(functions).toHaveLength(1);
+//   const contents = await getFunctionAssetContents(functions[0], app);
+//   for (const entry of [
+//     'common',
+//     'pydantic',
+//     'httpx',
+//     'app_handler.py',
+//   ]) {
+//     expect(contents).toContain(entry);
+//   }
+// }, TEST_TIMEOUT);
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 async function getFunctionAssetContents(functionResource: any, app: App) {

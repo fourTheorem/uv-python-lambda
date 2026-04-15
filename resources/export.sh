@@ -59,11 +59,6 @@ done
 #	echo "No arguments"
 #fi
 
-if [ ! -n "${package}" ]; then
-    echo "ERROR: No package specified" >&2
-    print_help
-fi
-
 if [ ! -n "${output}" ]; then
     echo "ERROR: No output (directory) specified" >&2
     print_help
@@ -78,8 +73,14 @@ cd ${WORK_DIR}
 
 export reqsFile=${WORK_DIR}/requirements-${package}.txt
 export outputDir=${output}
+
+export package_args=""
+if [ -n "${package}" ]; then
+	package_args = "--package ${package}"
+fi
+
 uv sync --python-preference=only-system --compile-bytecode --no-dev --frozen --no-editable
-uv export --package "${package}" --no-dev --frozen --no-editable --no-sources > "${reqsFile}"
+uv export ${package_args} --no-dev --frozen --no-editable --no-sources > "${reqsFile}"
 
 # --no-sources installs workspace packages properly, not just providing a .pth file
 uv pip install -r "${reqsFile}" --target "${outputDir}" --compile-bytecode --link-mode=copy --exact --no-sources

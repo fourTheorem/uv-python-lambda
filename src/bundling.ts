@@ -84,28 +84,27 @@ export interface BundlingProps extends BundlingOptions {
  */
 export class Bundling {
   public static bundle(options: BundlingProps): AssetCode {
-    const {
-      hashableAssetExclude = HASHABLE_DEPENDENCIES_EXCLUDE,
-      ...bundlingOptions
-    } = options;
+    const { hashableAssetExclude = HASHABLE_DEPENDENCIES_EXCLUDE, ...bundlingOptions } = options;
     const bundling = new Bundling(bundlingOptions);
     const buildContainerId = Bundling.containerBuilders[bundling.containerBuilderKey];
-    if (!buildContainerId) {
+    if (!buildContainerId && !bundling.skip) {
       throw new Error("Bundling container not found");
     }
 
     const hostFunctionOutputDir = `${process.env.CDK_OUTDIR}/${bundling.containerBuilderKey}/${bundling.functionOutDir}`;
-    // mkdirSync(hostFunctionOutputDir, { recursive: true });
+    if (bundling.skip) {
+      mkdirSync(hostFunctionOutputDir, { recursive: true });
+    }
 
     return Code.fromCustomCommand(
       hostFunctionOutputDir,
       [
+        ...(bundling.skip ? ["echo", "Skipping bundling"] : []),
         "docker",
         "exec",
         bundling.containerBuilderKey ?? "",  // Key is only unset in 'skip' mode
         "/root/export.sh",
-        "--package",
-        options.workspacePackage ?? "uh-oh",  // TODO - add support for root package
+        ...(options.workspacePackage ? ["--package", options.workspacePackage] : []),
         "--output",
         `/uvbuild/${bundling.functionOutDir}/`,
       ],
@@ -125,6 +124,7 @@ export class Bundling {
   public readonly securityOpt?: string | undefined;
   public readonly network?: string | undefined;
   public readonly bundlingFileAccess?: BundlingFileAccess | undefined;
+  public readonly skip: boolean;
 
   /**
    * Unique key for the container for this bundling configuration.
@@ -171,6 +171,7 @@ export class Bundling {
     this.securityOpt = props.securityOpt;
     this.network = props.network;
     this.bundlingFileAccess = props.bundlingFileAccess;
+    this.skip = !!props.skip;
 
     // If skip is true then don't call DockerImage.fromBuild as that calls dockerExec.
     // Return a dummy object of the right type as it's not going to be used.
@@ -189,7 +190,7 @@ export class Bundling {
 
     // Create a hash of the props to use as a key for the build container cache
     this.containerBuilderKey = `uv-bundling-${hash(hashableProperties)}`;
-    this.functionOutDir = props.workspacePackage ?? "";
+    this.functionOutDir = props.workspacePackage ?? "$$uv_root";
     const existingBuilder = Bundling.containerBuilders[this.containerBuilderKey];
     if (!existingBuilder) {
       const buildImage = DockerImage.fromBuild(path.resolve(__dirname, '..', 'resources'), {
