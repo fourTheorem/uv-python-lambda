@@ -1,52 +1,110 @@
 # uv-python-lambda
 
-CDK Construct for Python Lambda Functions using [uv](https://docs.astral.sh/uv/)
+CDK construct for packaging Python Lambda functions from `uv` projects.
 
-## Goals
+## Why use it
 
-- ⚡️ Package and deploy Lambda Functions faster with `uv`'s speed
-- 📦 Support workspaces in a monorepo with [uv workspaces](https://docs.astral.sh/uv/concepts/workspaces/)
+- Packages Lambda assets from a `uv` project.
+- Supports `uv` workspaces, so you can package one workspace package while resolving dependencies from the workspace root.
+- Keeps the usual CDK Lambda experience: `PythonFunction` extends `aws_lambda.Function`, derives the handler from `index` and `handler`
+- Reuses builder containers across compatible functions during synthesis to reduce repeated setup work.
 
-`uv-python-lambda` is based on [aws-lambda-python-alpha](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-lambda-python-alpha-readme.html) with some differences:
+☝️ NOTE: This construct defaults to Python 3.12 on **ARM64**.
 
-- It only supports `uv` for packaging - there is no Poetry or pip support
-- It supports workspaces so you can build multiple Lambda functions from different uv workspaces and have their dependencies included correctly. This is useful for, but not limited to, monorepos.
+This library is published for TypeScript/JavaScript and Python.
 
-## API
+## Install
 
-See [API.md](API.md)
+TypeScript / JavaScript:
 
-## Example
+```bash
+npm install uv-python-lambda aws-cdk-lib constructs
+```
+
+Python:
+
+```bash
+uv add uv-python-lambda aws-cdk-lib constructs
+```
+
+Docker is required for bundling.
+
+## Usage
+
+TypeScript:
+
+```ts
+import * as path from 'node:path';
+import { Stack, Duration } from 'aws-cdk-lib';
+import { PythonFunction } from 'uv-python-lambda';
+import type { Construct } from 'constructs';
+
+export class ExampleStack extends Stack {
+  constructor(scope: Construct, id: string) {
+    super(scope, id);
+
+    new PythonFunction(this, 'Fn', {
+      rootDir: path.join(__dirname, '..', '..', 'services', 'fetcher'),
+      index: 'handler.py',
+      handler: 'lambda_handler',
+      timeout: Duration.seconds(30),
+    });
+  }
+}
+```
+
+Python:
 
 ```python
-from uv_python_lambda import PythonFunction
+from pathlib import Path
+
+from aws_cdk import Duration, Stack
 from constructs import Construct
-
-# The root path should be relative to your CDK source file
-root_path = Path(__file__).parent.parent.parent
+from uv_python_lambda import PythonFunction
 
 
-class CdkStack(Stack):
+class ExampleStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        fn = PythonFunction(
-          self,
-          "fn",
-          root_dir=str(root_path),
-          index="fetcher_lambda.py",
-          workspace_package="fetcher",  # Use a workspace package as the top-level Lambda entry point.
-          handler="handle_event",
-          bundling={
-              "asset_excludes": [
-                  ".venv/",
-                  "node_modules/",
-                  "cdk/",
-                  ".git/",
-                  ".idea/",
-                  "dist/",
-              ]
-          },
-          timeout=Duration.seconds(30),
+        root_dir = Path(__file__).resolve().parents[2] / "services" / "fetcher"
+
+        PythonFunction(
+            self,
+            "Fn",
+            root_dir=str(root_dir),
+            index="handler.py",
+            handler="lambda_handler",
+            timeout=Duration.seconds(30),
         )
 ```
+
+## Using workspaces
+
+Point `rootDir` or `root_dir` at the workspace root, then set `workspacePackage` or `workspace_package` to the package that contains the Lambda entrypoint.
+
+```ts
+new PythonFunction(this, 'WorkspaceFn', {
+  rootDir: path.join(__dirname, '..', '..'),
+  workspacePackage: 'fetcher',
+  index: 'fetcher_lambda.py',
+  handler: 'handle_event',
+});
+```
+
+```python
+PythonFunction(
+    self,
+    "WorkspaceFn",
+    root_dir=str(root_dir),
+    workspace_package="fetcher",
+    index="fetcher_lambda.py",
+    handler="handle_event",
+)
+```
+
+## Notes
+
+- `index` can be passed as `handler.py` or `handler`.
+- Use `bundling` to pass Docker environment variables, asset excludes, build args, or command hooks.
+- See [API.md](API.md) for the full API reference.

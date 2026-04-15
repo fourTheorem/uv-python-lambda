@@ -9,6 +9,16 @@ import type {
  */
 export interface BundlingOptions extends DockerRunOptions {
   /**
+   * uv version to install in the builder image.
+   *
+   * It is best practice to pin this for reproducible builds. If omitted, the
+   * library default is used.
+   *
+   * @default - 0.5.27
+   */
+  readonly uvVersion?: string;
+
+  /**
    * List of file patterns to exclude when copying assets from source for bundling.
    *
    * @default - DEFAULT_ASSET_EXCLUDES

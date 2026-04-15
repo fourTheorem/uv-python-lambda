@@ -1179,6 +1179,7 @@ const bundlingOptions: BundlingOptions = { ... }
 | <code><a href="#uv-python-lambda.BundlingOptions.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Which option to use to copy the source files to the docker container and output files back. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.commandHooks">commandHooks</a></code> | <code><a href="#uv-python-lambda.ICommandHooks">ICommandHooks</a></code> | Command hooks. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.outputPathSuffix">outputPathSuffix</a></code> | <code>string</code> | Output path suffix: the suffix for the directory into which the bundled output is written. |
+| <code><a href="#uv-python-lambda.BundlingOptions.property.uvVersion">uvVersion</a></code> | <code>string</code> | uv version to install in the builder image. |
 
 ---
 
@@ -1435,6 +1436,22 @@ Output path suffix: the suffix for the directory into which the bundled output i
 
 ---
 
+##### `uvVersion`<sup>Optional</sup> <a name="uvVersion" id="uv-python-lambda.BundlingOptions.property.uvVersion"></a>
+
+```typescript
+public readonly uvVersion: string;
+```
+
+- *Type:* string
+- *Default:* 0.5.27
+
+uv version to install in the builder image.
+
+It is best practice to pin this for reproducible builds. If omitted, the
+library default is used.
+
+---
+
 ### BundlingProps <a name="BundlingProps" id="uv-python-lambda.BundlingProps"></a>
 
 #### Initializer <a name="Initializer" id="uv-python-lambda.BundlingProps.Initializer"></a>
@@ -1466,6 +1483,7 @@ const bundlingProps: BundlingProps = { ... }
 | <code><a href="#uv-python-lambda.BundlingProps.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Which option to use to copy the source files to the docker container and output files back. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.commandHooks">commandHooks</a></code> | <code><a href="#uv-python-lambda.ICommandHooks">ICommandHooks</a></code> | Command hooks. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.outputPathSuffix">outputPathSuffix</a></code> | <code>string</code> | Output path suffix: the suffix for the directory into which the bundled output is written. |
+| <code><a href="#uv-python-lambda.BundlingProps.property.uvVersion">uvVersion</a></code> | <code>string</code> | uv version to install in the builder image. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.rootDir">rootDir</a></code> | <code>string</code> | uv project root (workspace root). |
 | <code><a href="#uv-python-lambda.BundlingProps.property.runtime">runtime</a></code> | <code>aws-cdk-lib.aws_lambda.Runtime</code> | Lambda runtime (must be one of the Python runtimes). |
 | <code><a href="#uv-python-lambda.BundlingProps.property.architecture">architecture</a></code> | <code>aws-cdk-lib.aws_lambda.Architecture</code> | Lambda CPU architecture. |
@@ -1725,6 +1743,22 @@ public readonly outputPathSuffix: string;
 - *Default:* 'python' for a layer, empty string otherwise.
 
 Output path suffix: the suffix for the directory into which the bundled output is written.
+
+---
+
+##### `uvVersion`<sup>Optional</sup> <a name="uvVersion" id="uv-python-lambda.BundlingProps.property.uvVersion"></a>
+
+```typescript
+public readonly uvVersion: string;
+```
+
+- *Type:* string
+- *Default:* 0.5.27
+
+uv version to install in the builder image.
+
+It is best practice to pin this for reproducible builds. If omitted, the
+library default is used.
 
 ---
 

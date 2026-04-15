@@ -1,12 +1,14 @@
 import { awscdk } from 'projen';
 import { JobPermission } from 'projen/lib/github/workflows-model';
+// import { NodePackageManager } from 'projen/lib/javascript';
 const project = new awscdk.AwsCdkConstructLibrary({
   author: 'Eoin Shanaghy',
   authorAddress: 'eoin.shanaghy@fourtheorem.com',
+  // packageManager: NodePackageManager.YARN_CLASSIC,
   cdkVersion: '2.161.1',
   constructsVersion: '10.3.0',
   defaultReleaseBranch: 'main',
-  jsiiVersion: '~5.5.0',
+  jsiiVersion: '~5.9.0',
   name: 'uv-python-lambda',
   projenrcTs: true,
   repositoryUrl: 'https://github.com/fourTheorem/uv-python-lambda',

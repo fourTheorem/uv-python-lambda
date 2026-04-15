@@ -32,7 +32,10 @@ export const DEFAULT_ASSET_EXCLUDES = [
   'cdk',
 ];
 
+export const DEFAULT_UV_VERSION = '0.5.27';
+
 const BUILDER_READY_LOG = 'Builder container is ready and waiting';
+const BUILDER_NOFILE_LIMIT = '1048576:1048576';
 
 export interface BundlingProps extends BundlingOptions {
   /**
@@ -154,7 +157,9 @@ export class Bundling {
       runtime: props.runtime.name,
       architecture: props.architecture ?? Architecture.ARM_64,
       buildArgs: props.buildArgs,
+      environment: getBuilderEnvironment(props.environment),
       rootDir: path.resolve(props.rootDir),
+      uvVersion: props.uvVersion ?? DEFAULT_UV_VERSION,
     };
 
     this.containerBuilderKey = `uv-bundling-${hash(hashableProperties)}`;
@@ -180,12 +185,21 @@ export class Bundling {
       `com.fourtheorem.uv-python-lambda.builder-key=${this.containerBuilderKey}`,
       '--name',
       this.containerBuilderName,
+    ];
+
+    for (const [name, value] of this.getBuilderEnvironmentEntries()) {
+      dockerArgs.push('--env', `${name}=${value}`);
+    }
+
+    dockerArgs.push(
+      '--ulimit',
+      `nofile=${BUILDER_NOFILE_LIMIT}`,
       '-v',
       `${hostUvBuildDir}:/uvbuild`,
       '-v',
       `${hostRootDir}:/src:ro`,
       buildImage.image,
-    ];
+    );
 
     ensureBuilderContainer({
       name: this.containerBuilderName,
@@ -200,14 +214,18 @@ export class Bundling {
     }
 
     const containerOutputDir = this.getContainerFunctionOutputDir();
-    const command = [
-      'docker',
-      'exec',
+    const command = ['docker', 'exec'];
+
+    for (const [name, value] of this.getBuilderEnvironmentEntries()) {
+      command.push('-e', `${name}=${value}`);
+    }
+
+    command.push(
       this.containerBuilderName,
       '/root/export.sh',
       '--output',
       containerOutputDir,
-    ];
+    );
 
     if (this.props.workspacePackage) {
       command.push('--package', this.props.workspacePackage);
@@ -248,6 +266,7 @@ export class Bundling {
       {
         buildArgs: {
           ...this.props.buildArgs,
+          UV_VERSION: this.props.uvVersion ?? DEFAULT_UV_VERSION,
           IMAGE: this.props.runtime.bundlingImage.image,
           IMAGE_ARCH:
             this.props.architecture === Architecture.X86_64
@@ -279,6 +298,12 @@ export class Bundling {
       this.outputPathSuffix ?? '',
     );
   }
+
+  private getBuilderEnvironmentEntries(): [string, string][] {
+    return Object.entries(getBuilderEnvironment(this.environment)).sort(
+      ([a], [b]) => a.localeCompare(b),
+    );
+  }
 }
 
 function encodeCommands(commands: string[]) {
@@ -299,4 +324,13 @@ function sanitizeOutputComponent(value: string) {
 
 function toPosixPath(value: string) {
   return value.split(path.sep).join(path.posix.sep);
+}
+
+function getBuilderEnvironment(
+  environment?: Record<string, string>,
+): Record<string, string> {
+  return {
+    UV_PYTHON_LAMBDA_NOFILE_LIMIT: BUILDER_NOFILE_LIMIT.split(':')[0],
+    ...environment,
+  };
 }

@@ -16,6 +16,11 @@ import {
 const execAsync = promisify(exec);
 const resourcesPath = path.resolve(__dirname, 'resources');
 const TEST_TIMEOUT = Number(process.env.TEST_TIMEOUT ?? '999999');
+const UV_STABILIZING_ENV = {
+  UV_CONCURRENT_BUILDS: '1',
+  UV_CONCURRENT_INSTALLS: '1',
+  UV_CONCURRENT_DOWNLOADS: '8',
+};
 
 /**
  * Determine the optimal Lambda Function architecture based on the Docker host's CPU
@@ -153,16 +158,19 @@ test(
     new PythonFunction(stack, 'workspaces_app', {
       rootDir: path.join(resourcesPath, 'workspaces_app'),
       workspacePackage: 'app',
-      index: 'app_handler.py',
+      index: 'app.app_handler.py',
       handler: 'handle_event',
       runtime: Runtime.PYTHON_3_10,
       architecture: await getDockerHostArch(),
+      bundling: {
+        environment: UV_STABILIZING_ENV,
+      },
     });
 
     const template = Template.fromStack(stack);
 
     template.hasResourceProperties('AWS::Lambda::Function', {
-      Handler: 'app_handler.handle_event',
+      Handler: 'app.app_handler.handle_event',
       Runtime: 'python3.10',
       Code: {
         S3Bucket: Match.anyValue(),
