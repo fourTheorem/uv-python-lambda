@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This is the entrypoint script for the builder container used to bundle Python Lambda functions with UV.
+# It sets up the environment and waits for commands to execute.
+
 # /uvbuild is the working directory for caches and staged outputs.
 # /src is the project root mounted from the host.
 
