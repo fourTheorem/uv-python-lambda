@@ -1,6 +1,6 @@
+import { mkdirSync } from 'node:fs';
 import * as path from 'node:path';
 const hash = require('object-hash');
-import { runDockerContainerAndWait } from './build-container';
 
 import {
   AssetHashType,
@@ -14,8 +14,8 @@ import {
   Code,
   type Runtime,
 } from 'aws-cdk-lib/aws-lambda';
-import type { BundlingOptions } from './types';
-import { mkdirSync } from 'node:fs';
+import { BUILDER_LABEL, ensureBuilderContainer } from './build-container';
+import type { BundlingOptions, ICommandHooks } from './types';
 
 export const HASHABLE_DEPENDENCIES_EXCLUDE = [
   '*.pyc',
@@ -32,13 +32,7 @@ export const DEFAULT_ASSET_EXCLUDES = [
   'cdk',
 ];
 
-// interface BundlingCommandOptions {
-//   readonly rootDir: string;
-//   readonly workspacePackage?: string;
-//   readonly inputDir: string;
-//   readonly outputDir: string;
-//   readonly assetExcludes: string[];
-// }
+const BUILDER_READY_LOG = 'Builder container is ready and waiting';
 
 export interface BundlingProps extends BundlingOptions {
   /**
@@ -83,85 +77,58 @@ export interface BundlingProps extends BundlingOptions {
  * Bundling options for Python Lambda assets
  */
 export class Bundling {
-  public static bundle(options: BundlingProps): AssetCode {
-    const { hashableAssetExclude = HASHABLE_DEPENDENCIES_EXCLUDE, ...bundlingOptions } = options;
-    const bundling = new Bundling(bundlingOptions);
-    const buildContainerId = Bundling.containerBuilders[bundling.containerBuilderKey];
-    if (!buildContainerId && !bundling.skip) {
-      throw new Error("Bundling container not found");
-    }
+  private static readonly buildImages: Record<string, DockerImage> = {};
 
-    const hostFunctionOutputDir = `${process.env.CDK_OUTDIR}/${bundling.containerBuilderKey}/${bundling.functionOutDir}`;
-    if (bundling.skip) {
-      mkdirSync(hostFunctionOutputDir, { recursive: true });
+  public static bundle(options: BundlingProps): AssetCode {
+    const {
+      hashableAssetExclude = HASHABLE_DEPENDENCIES_EXCLUDE,
+      assetHashType = AssetHashType.SOURCE,
+      assetHash,
+      ...bundlingOptions
+    } = options;
+
+    const bundling = new Bundling(bundlingOptions);
+    const cdkOutDir = getCdkOutDir();
+    const hostFunctionOutputDir = bundling.getHostFunctionOutputDir(cdkOutDir);
+
+    mkdirSync(hostFunctionOutputDir, { recursive: true });
+
+    if (!bundling.skip) {
+      bundling.ensureBuilderReady(cdkOutDir);
     }
 
     return Code.fromCustomCommand(
       hostFunctionOutputDir,
-      [
-        ...(bundling.skip ? ["echo", "Skipping bundling"] : []),
-        "docker",
-        "exec",
-        bundling.containerBuilderKey ?? "",  // Key is only unset in 'skip' mode
-        "/root/export.sh",
-        ...(options.workspacePackage ? ["--package", options.workspacePackage] : []),
-        "--output",
-        `/uvbuild/${bundling.functionOutDir}/`,
-      ],
+      bundling.createBundlingCommand(),
       {
-        assetHashType: AssetHashType.SOURCE,
+        assetHash,
+        assetHashType,
         exclude: hashableAssetExclude,
-        // bundling: new Bundling(bundlingOptions),
-      });
+      },
+    );
   }
 
-  public readonly entrypoint?: string[] | undefined;
-  public readonly volumes?: DockerVolume[] | undefined;
-  public readonly volumesFrom?: string[] | undefined;
-  public readonly environment?: { [key: string]: string } | undefined;
-  public readonly workingDirectory?: string | undefined;
-  public readonly user?: string | undefined;
-  public readonly securityOpt?: string | undefined;
-  public readonly network?: string | undefined;
-  public readonly bundlingFileAccess?: BundlingFileAccess | undefined;
+  public readonly entrypoint?: string[];
+  public readonly volumes?: DockerVolume[];
+  public readonly volumesFrom?: string[];
+  public readonly environment?: { [key: string]: string };
+  public readonly workingDirectory?: string;
+  public readonly user?: string;
+  public readonly securityOpt?: string;
+  public readonly network?: string;
+  public readonly bundlingFileAccess?: BundlingFileAccess;
   public readonly skip: boolean;
 
-  /**
-   * Unique key for the container for this bundling configuration.
-   * Containers can be shared between multiple functions if their architecture, etc., are the same
-   */
-  private containerBuilderKey: string;
-
-  /**
-   * Unique output directory where the function code and dependencies will be written
-   */
-  private functionOutDir: string;
-
-  /**
-   * Cache of builder container IDs by key
-   */
-  private static readonly containerBuilders: Record<string, string> = {};
+  private readonly assetExcludes: string[];
+  private readonly commandHooks?: ICommandHooks;
+  private readonly containerBuilderKey: string;
+  private readonly containerBuilderName: string;
+  private readonly functionOutDir: string;
+  private readonly outputPathSuffix?: string;
+  private readonly props: BundlingProps;
 
   constructor(props: BundlingProps) {
-    // const {
-    //   rootDir,
-    //   workspacePackage,
-    //   assetExcludes = DEFAULT_ASSET_EXCLUDES,
-    // } = props;
-
-    // inputdir: assetStaging.BUNDLING_INPUT_DIR,
-    // outputDir: AssetStaging.BUNDLING_OUTPUT_DIR,
-
-
-    // const bundlingCommands = props.skip
-    //   ? []
-    //   : this.createBundlingCommands({
-    //     rootDir,
-    //     workspacePackage,
-    //     assetExcludes,
-    //     commandHooks,
-    //   });
-
+    this.props = props;
     this.entrypoint = props.entrypoint;
     this.volumes = props.volumes;
     this.volumesFrom = props.volumesFrom;
@@ -171,63 +138,164 @@ export class Bundling {
     this.securityOpt = props.securityOpt;
     this.network = props.network;
     this.bundlingFileAccess = props.bundlingFileAccess;
+    this.assetExcludes = props.assetExcludes ?? DEFAULT_ASSET_EXCLUDES;
+    this.commandHooks = props.commandHooks;
+    this.outputPathSuffix = props.outputPathSuffix;
     this.skip = !!props.skip;
 
-    // If skip is true then don't call DockerImage.fromBuild as that calls dockerExec.
-    // Return a dummy object of the right type as it's not going to be used.
     if (props.skip) {
-      this.containerBuilderKey = "NONE";
-      this.functionOutDir = "NONE";
+      this.containerBuilderKey = 'skipped';
+      this.containerBuilderName = 'skipped';
+      this.functionOutDir = 'skipped';
       return;
     }
 
     const hashableProperties = {
-      runtime: props.runtime,
-      architecture: props.architecture,
+      runtime: props.runtime.name,
+      architecture: props.architecture ?? Architecture.ARM_64,
       buildArgs: props.buildArgs,
       rootDir: props.rootDir,
     };
 
-    // Create a hash of the props to use as a key for the build container cache
     this.containerBuilderKey = `uv-bundling-${hash(hashableProperties)}`;
-    this.functionOutDir = props.workspacePackage ?? "$$uv_root";
-    const existingBuilder = Bundling.containerBuilders[this.containerBuilderKey];
-    if (!existingBuilder) {
-      const buildImage = DockerImage.fromBuild(path.resolve(__dirname, '..', 'resources'), {
-        buildArgs: {
-          ...props.buildArgs,
-          IMAGE: props.runtime.bundlingImage.image,
-          IMAGE_ARCH: props.architecture === Architecture.X86_64 ? 'x86_64' : 'arm64',
-          PYTHON_VERSION: props.runtime.name.slice(6),
-          BUNDLING_IMAGE: props.runtime.bundlingImage.image,
-        },
-        platform: (props.architecture ?? Architecture.ARM_64).dockerPlatform,
-      });
-
-      const hostUvBuildDir = `${process.env.CDK_OUTDIR}/${this.containerBuilderKey}`;
-      mkdirSync(hostUvBuildDir, { recursive: true });
-
-      // Spawn a docker run process in -d daemon mode using buildImage.image
-      const dockerArgs = [
-        "run",
-        "-d",
-        "--cap-add=SYS_ADMIN",  // required for overlay fs
-        "--name",
-        this.containerBuilderKey,
-        "-v",
-        `${hostUvBuildDir}:/uvbuild`,
-        "-v",
-        `${props.rootDir}:/src`,
-        buildImage.image,
-      ]
-
-      const containerId = runDockerContainerAndWait(
-        this.containerBuilderKey,
-        dockerArgs, "Builder container is ready and waiting"
-      );
-
-      Bundling.containerBuilders[this.containerBuilderKey] = containerId;
-    }
+    this.containerBuilderName = `${this.containerBuilderKey}-${process.pid}`;
+    this.functionOutDir = sanitizeOutputComponent(
+      props.workspacePackage ?? '$$uv_root',
+    );
   }
 
+  private ensureBuilderReady(cdkOutDir: string) {
+    const buildImage = this.createDockerImage();
+    const hostUvBuildDir = path.join(cdkOutDir, this.containerBuilderKey);
+
+    mkdirSync(hostUvBuildDir, { recursive: true });
+
+    const dockerArgs = [
+      'run',
+      '-d',
+      '--label',
+      `${BUILDER_LABEL}=true`,
+      '--label',
+      `com.fourtheorem.uv-python-lambda.builder-key=${this.containerBuilderKey}`,
+      '--name',
+      this.containerBuilderName,
+      '-v',
+      `${hostUvBuildDir}:/uvbuild`,
+      '-v',
+      `${this.props.rootDir}:/src:ro`,
+      buildImage.image,
+    ];
+
+    ensureBuilderContainer({
+      name: this.containerBuilderName,
+      args: dockerArgs,
+      readyLog: BUILDER_READY_LOG,
+    });
+  }
+
+  private createBundlingCommand(): string[] {
+    if (this.skip) {
+      return [process.execPath, '-e', 'process.exit(0)'];
+    }
+
+    const containerOutputDir = this.getContainerFunctionOutputDir();
+    const command = [
+      'docker',
+      'exec',
+      this.containerBuilderName,
+      '/root/export.sh',
+      '--output',
+      containerOutputDir,
+    ];
+
+    if (this.props.workspacePackage) {
+      command.push('--package', this.props.workspacePackage);
+    }
+
+    for (const exclude of this.assetExcludes) {
+      command.push('--exclude', exclude);
+    }
+
+    const beforeHooks = this.commandHooks?.beforeBundling(
+      '/src',
+      containerOutputDir,
+    );
+    if (beforeHooks && beforeHooks.length > 0) {
+      command.push('--before-hooks', encodeCommands(beforeHooks));
+    }
+
+    const afterHooks = this.commandHooks?.afterBundling(
+      '/src',
+      containerOutputDir,
+    );
+    if (afterHooks && afterHooks.length > 0) {
+      command.push('--after-hooks', encodeCommands(afterHooks));
+    }
+
+    return command;
+  }
+
+  private createDockerImage(): DockerImage {
+    const imageKey = this.containerBuilderKey;
+    const existing = Bundling.buildImages[imageKey];
+    if (existing) {
+      return existing;
+    }
+
+    const buildImage = DockerImage.fromBuild(
+      path.resolve(__dirname, '..', 'resources'),
+      {
+        buildArgs: {
+          ...this.props.buildArgs,
+          IMAGE: this.props.runtime.bundlingImage.image,
+          IMAGE_ARCH:
+            this.props.architecture === Architecture.X86_64
+              ? 'x86_64'
+              : 'arm64',
+          PYTHON_VERSION: this.props.runtime.name.slice(6),
+          BUNDLING_IMAGE: this.props.runtime.bundlingImage.image,
+        },
+        platform: (this.props.architecture ?? Architecture.ARM_64)
+          .dockerPlatform,
+      },
+    );
+
+    Bundling.buildImages[imageKey] = buildImage;
+    return buildImage;
+  }
+
+  private getContainerFunctionOutputDir() {
+    return toPosixPath(
+      path.join('/uvbuild', this.functionOutDir, this.outputPathSuffix ?? ''),
+    );
+  }
+
+  private getHostFunctionOutputDir(cdkOutDir: string) {
+    return path.join(
+      cdkOutDir,
+      this.containerBuilderKey,
+      this.functionOutDir,
+      this.outputPathSuffix ?? '',
+    );
+  }
+}
+
+function encodeCommands(commands: string[]) {
+  return Buffer.from(JSON.stringify(commands), 'utf8').toString('base64');
+}
+
+function getCdkOutDir() {
+  const cdkOutDir = process.env.CDK_OUTDIR;
+  if (!cdkOutDir) {
+    throw new Error('CDK_OUTDIR must be set before bundling Lambda assets');
+  }
+  return cdkOutDir;
+}
+
+function sanitizeOutputComponent(value: string) {
+  return value.replace(/[^A-Za-z0-9._-]/g, '_');
+}
+
+function toPosixPath(value: string) {
+  return value.split(path.sep).join(path.posix.sep);
 }

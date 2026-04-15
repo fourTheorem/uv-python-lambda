@@ -79,7 +79,7 @@ export class PythonFunction extends Function {
     const code = Bundling.bundle({
       rootDir,
       runtime,
-      skip: skip,
+      skip,
       architecture,
       workspacePackage,
       ...props.bundling,
@@ -95,7 +95,10 @@ export class PythonFunction extends Function {
       code,
       handler: resolvedHandler,
     });
-    const assetRelPath = path.relative(process.env.CDK_OUTDIR ?? "", code.path);
-    (this.node.defaultChild as CfnFunction).addMetadata('uv-python-lambda:asset-path', assetRelPath);
+    const assetRelPath = path.relative(process.env.CDK_OUTDIR ?? '', code.path);
+    (this.node.defaultChild as CfnFunction).addMetadata(
+      'uv-python-lambda:asset-path',
+      assetRelPath,
+    );
   }
 }

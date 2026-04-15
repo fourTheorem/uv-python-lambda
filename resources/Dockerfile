@@ -7,5 +7,6 @@ FROM ${BUNDLING_IMAGE}
 # FROM public.ecr.aws/lambda/python:3.12-$IMAGE_ARCH
 COPY --from=uv /uv /uvx /bin/
 COPY *.sh /root
+RUN chmod +x /root/*.sh
 WORKDIR /root
 ENTRYPOINT [ "/root/entrypoint.sh" ]

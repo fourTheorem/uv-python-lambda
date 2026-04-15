@@ -5,10 +5,6 @@
       "type": "build"
     },
     {
-      "name": "@types/atomic-sleep",
-      "type": "build"
-    },
-    {
       "name": "@types/jest",
       "type": "build"
     },
@@ -72,10 +68,6 @@
     {
       "name": "typescript",
       "type": "build"
-    },
-    {
-      "name": "atomic-sleep",
-      "type": "bundled"
     },
     {
       "name": "object-hash",

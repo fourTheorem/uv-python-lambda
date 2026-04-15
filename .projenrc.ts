@@ -21,17 +21,20 @@ const project = new awscdk.AwsCdkConstructLibrary({
   },
   // cdkVersion: '2.1.0',    /* CDK version to use. */
   // cdkDependencies: [],     /* CDK dependencies of this module. */
-  bundledDeps: ['object-hash', 'atomic-sleep'],                /* Dependencies which should be bundled in the package. */
+  bundledDeps: [
+    'object-hash',
+  ] /* Dependencies which should be bundled in the package. */,
   // deps: [],                /* Runtime dependencies of this module. */
   // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */
-  devDeps: ['@biomejs/biome', '@types/object-hash', '@types/atomic-sleep'] /* Build dependencies for this module. */,
+  devDeps: [
+    '@biomejs/biome',
+    '@types/object-hash',
+  ] /* Build dependencies for this module. */,
   // packageName: undefined,  /* The "name" in package.json. */
   jestOptions: {
     extraCliOptions: ['--testTimeout=300000'],
   },
-  gitignore: [
-    ".vscode/",
-  ],
+  gitignore: ['.vscode/'],
   eslint: false,
 });
 

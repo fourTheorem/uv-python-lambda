@@ -1,134 +1,178 @@
-import sleep = require("atomic-sleep");
-import { spawn, exec, spawnSync, execSync } from "node:child_process";
+import { spawnSync } from 'node:child_process';
 
-/**
- * Runs a Docker container in detached mode and waits for a specific log line.
- * @param image - The Docker image to run.
- * @param args - Additional arguments to pass to Docker.
- * @param logLine - The log line to wait for.
- * 
- * @returns The container ID.
- */
-export function runDockerContainerAndWait(name: string, args: string[], logLine: string): string {
-  // kill any old container that might be running from previous builds
-  spawnSync("docker", ["rm", "-f", name])
-  // Start the container in detached mode
-  console.log("Spawning Docker container...", name, args, logLine);
-  const dockerRun = spawnSync("docker", args);
-  if (dockerRun.error) {
-    console.error(`Failed to start Docker process: ${dockerRun.error}`);
-    throw new Error(`Failed to start uv-python-lambda builder container: ${dockerRun.error}`);
+export const BUILDER_LABEL = 'com.fourtheorem.uv-python-lambda.builder';
+
+const managedBuilders = new Map<string, string>();
+
+let cleanupRegistered = false;
+
+interface DockerResult {
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly status: number;
+}
+
+export interface BuilderContainerOptions {
+  readonly name: string;
+  readonly args: string[];
+  readonly readyLog: string;
+  readonly timeoutMs?: number;
+}
+
+export function ensureBuilderContainer(
+  options: BuilderContainerOptions,
+): string {
+  registerCleanupHandlers();
+
+  const existing = managedBuilders.get(options.name);
+  if (existing) {
+    return existing;
   }
+
+  pruneExitedBuilderContainers();
+  removeContainer(options.name);
+
+  const dockerRun = runDockerCommand(options.args);
   if (dockerRun.status !== 0) {
-    const message = `Docker process exited with code ${dockerRun.status}, ${dockerRun.stderr.toString()}`;
-    console.error(message);
-    throw new Error(message);
+    throw new Error(
+      `Failed to start uv-python-lambda builder container: ${dockerRun.stderr}`,
+    );
   }
 
-  const containerId = dockerRun.stdout.toString().trim()
+  const containerId = dockerRun.stdout.trim();
 
-  console.log(`Container started: ${containerId}`);
+  try {
+    waitForContainerReady(
+      containerId,
+      options.readyLog,
+      options.timeoutMs ?? 60_000,
+    );
+  } catch (error) {
+    removeContainer(containerId);
+    throw error;
+  }
 
-  // Wait for the container to be running
-  console.log("Waiting for container to be ready...");
-  waitForContainer(containerId);
-  console.log("Container is ready");
-  // waitForLogLine(containerId, logLine);
-  // console.log("Log line found.");
-  // TODO - rm -f container if it didn't run successfully
+  managedBuilders.set(options.name, containerId);
   return containerId;
 }
 
-/**
- * Waits until a container is in the "running" state.
- */
-function waitForContainer(containerId: string) {
-  // TODO - add a timeout
-  let attempts = 60;
-  while (attempts > 0) {
-    const stdout = execSync(`docker inspect -f '{{.State.Running}}' ${containerId}`)
-    if (stdout.toString().trim() === "true") {
-      console.log(`Container ${containerId} is running.`);
-      sleep(60000);
+export function cleanupBuilderContainers() {
+  for (const containerId of managedBuilders.values()) {
+    removeContainer(containerId);
+  }
+  managedBuilders.clear();
+}
+
+export function getManagedBuilderContainerNames(): string[] {
+  return [...managedBuilders.keys()];
+}
+
+export function pruneExitedBuilderContainers() {
+  const exited = runDockerCommand([
+    'ps',
+    '-aq',
+    '--filter',
+    `label=${BUILDER_LABEL}=true`,
+    '--filter',
+    'status=exited',
+  ]);
+
+  if (exited.status !== 0) {
+    throw new Error(
+      `Failed to list exited builder containers: ${exited.stderr}`,
+    );
+  }
+
+  for (const containerId of exited.stdout.split(/\s+/).filter(Boolean)) {
+    removeContainer(containerId);
+  }
+}
+
+function waitForContainerReady(
+  containerId: string,
+  readyLog: string,
+  timeoutMs: number,
+) {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const state = inspectContainerState(containerId);
+    const logs = readContainerLogs(containerId);
+
+    if (state === 'running' && logs.includes(readyLog)) {
       return;
     }
-    console.log(`Container ${containerId} is not yet running.`);
-    attempts--;
-    sleep(1000);
-  }
-  throw new Error(`Container ${containerId} did not start within the timeout.`);
-}
 
-/**
- * Waits until a specific line appears in the container logs.
- * @param containerId - The container ID.
- * @param logLine - The line to wait for.
- */
-// function waitForLogLine(containerId: string, logLine: string) {
-//   let attempts = 60;
-//   while (attempts > 0) {
-//     console.log(`Checking logs for ${containerId}... ${attempts} attempts remaining.`);
-//     const logProcess = spawnSync("docker", ["logs", containerId]);
-//     if (logProcess.error) {
-//       const message = `Failed to get container logs: ${containerId} ${logProcess.error}`;
-//       console.error(message);
-//       throw new Error(message);
-//     }
-//     if (logProcess.status !== 0) {
-//       const message = `Docker process exited with code ${logProcess.status}, ${logProcess.stderr.toString()}`;
-//       console.error(message);
-//       throw new Error(message);
-//     }
-
-//     const logs = logProcess.stdout.toString();
-//     console.log('LOGS', logs);
-//     if (logs.includes(logLine)) {
-//       return;
-//     }
-//     attempts--;
-//     sleep(1000);
-//   }
-
-//   throw new Error(`Log line not found: ${logLine}`);
-// }
-
-/**
- * Stops the container.
- * @param containerId - The container ID.
- */
-export function stopContainer(containerId: string) {
-  exec(`docker stop ${containerId}`, (error) => {
-    if (error) {
-      console.error(`Failed to stop container ${containerId}: ${error.message}`);
-    } else {
-      console.log(`Container ${containerId} stopped.`);
+    if (state === 'exited') {
+      throw new Error(
+        `Builder container ${containerId} exited before becoming ready.\n${logs}`,
+      );
     }
-  });
+
+    sleep(250);
+  }
+
+  throw new Error(
+    `Builder container ${containerId} did not become ready within ${timeoutMs}ms.\n${readContainerLogs(
+      containerId,
+    )}`,
+  );
 }
 
-export function execCommand(containerId: string, command: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const execProcess = spawn("docker", ["exec", containerId, command]);
+function inspectContainerState(
+  containerId: string,
+): 'running' | 'exited' | 'missing' {
+  const result = runDockerCommand([
+    'inspect',
+    '--format',
+    '{{if .State.Running}}running{{else}}exited{{end}}',
+    containerId,
+  ]);
 
-    execProcess.stdout.on("data", (data) => {
-      const logs = data.toString();
-      console.log(logs);
-    });
+  if (result.status !== 0) {
+    return 'missing';
+  }
 
-    execProcess.stderr.on("data", (data) => {
-      console.error(`STDERR: ${data}`);
-    });
+  return result.stdout.trim() === 'running' ? 'running' : 'exited';
+}
 
-    execProcess.on("error", (err) => {
-      reject(new Error(`Failed to fetch logs: ${err.message}`));
-    });
+function readContainerLogs(containerId: string): string {
+  const result = runDockerCommand(['logs', containerId]);
+  return [result.stdout, result.stderr].filter(Boolean).join('\n');
+}
 
-    execProcess.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Exec ${command} for container ${containerId} failed with code ${code}`));
-      }
-    });
+function removeContainer(containerIdOrName: string) {
+  runDockerCommand(['rm', '-f', containerIdOrName]);
+}
+
+function runDockerCommand(args: string[]): DockerResult {
+  const result = spawnSync('docker', args, {
+    encoding: 'utf8',
   });
+
+  return {
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    status: result.status ?? 1,
+  };
+}
+
+function registerCleanupHandlers() {
+  if (cleanupRegistered) {
+    return;
+  }
+
+  cleanupRegistered = true;
+
+  process.on('exit', cleanupBuilderContainers);
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    process.on(signal, () => {
+      cleanupBuilderContainers();
+      process.exit(1);
+    });
+  }
+}
+
+function sleep(ms: number) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }

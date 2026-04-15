@@ -8,11 +8,14 @@ import { Match, Template } from 'aws-cdk-lib/assertions';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import * as cxapi from 'aws-cdk-lib/cx-api';
 import { PythonFunction } from '../src';
+import {
+  cleanupBuilderContainers,
+  getManagedBuilderContainerNames,
+} from '../src/build-container';
+
 const execAsync = promisify(exec);
-
 const resourcesPath = path.resolve(__dirname, 'resources');
-
-const TEST_TIMEOUT = Number(process.env.TEST_TIMEOUT ?? "999999");
+const TEST_TIMEOUT = Number(process.env.TEST_TIMEOUT ?? '999999');
 
 /**
  * Determine the optimal Lambda Function architecture based on the Docker host's CPU
@@ -43,17 +46,16 @@ async function createStack(name = 'test'): Promise<{ app: App; stack: Stack }> {
   const app = new App({});
   const stack = new Stack(app, name);
 
-  // This ensures that the 'aws:asset:path' metadata is set
   stack.node.setContext(cxapi.ASSET_RESOURCE_METADATA_ENABLED_CONTEXT, true);
 
   return { app, stack };
 }
 
-// Need to have CDK_OUTDIR set to something sensible as it's used to create the codePath when aws:asset:path is set
 const OLD_ENV = process.env;
 
 beforeEach(async () => {
   jest.resetModules();
+  cleanupBuilderContainers();
   process.env = { ...OLD_ENV };
   process.env.CDK_OUTDIR = await fs.mkdtemp(
     path.join(os.tmpdir(), 'uv-python-lambda-test-'),
@@ -61,6 +63,7 @@ beforeEach(async () => {
 }, TEST_TIMEOUT);
 
 afterEach(async () => {
+  cleanupBuilderContainers();
   if (process.env.CDK_OUTDIR) {
     await fs.rm(process.env.CDK_OUTDIR, { recursive: true });
   }
@@ -88,6 +91,7 @@ test('Create a function from basic_app', async () => {
       S3Key: Match.anyValue(),
     },
   });
+
   const functions = Object.values(
     template.findResources('AWS::Lambda::Function'),
   );
@@ -96,92 +100,143 @@ test('Create a function from basic_app', async () => {
   expect(contents).toContain('handler.py');
 });
 
-// test('Create a function from basic_app with no .py index extension', async () => {
-//   const { stack } = await createStack();
+test('Create a function from basic_app with no .py index extension', async () => {
+  const { stack } = await createStack();
 
-//   new PythonFunction(stack, 'basic_app', {
-//     rootDir: path.join(resourcesPath, 'basic_app'),
-//     index: 'handler',
-//     handler: 'lambda_handler',
-//     runtime: Runtime.PYTHON_3_12,
-//     architecture: await getDockerHostArch(),
-//   });
+  new PythonFunction(stack, 'basic_app', {
+    rootDir: path.join(resourcesPath, 'basic_app'),
+    index: 'handler',
+    handler: 'lambda_handler',
+    runtime: Runtime.PYTHON_3_12,
+    architecture: await getDockerHostArch(),
+  });
 
-//   const template = Template.fromStack(stack);
+  const template = Template.fromStack(stack);
 
-//   template.hasResourceProperties('AWS::Lambda::Function', {
-//     Handler: 'handler.lambda_handler',
-//     Runtime: 'python3.12',
-//     Code: {
-//       S3Bucket: Match.anyValue(),
-//       S3Key: Match.anyValue(),
-//     },
-//   });
-// });
+  template.hasResourceProperties('AWS::Lambda::Function', {
+    Handler: 'handler.lambda_handler',
+    Runtime: 'python3.12',
+    Code: {
+      S3Bucket: Match.anyValue(),
+      S3Key: Match.anyValue(),
+    },
+  });
+});
 
-// test('Create a function from basic_app when skip is true', async () => {
-//   const { stack } = await createStack();
+test('Create a function from basic_app when skip is true', async () => {
+  const { stack } = await createStack();
 
-//   const bundlingSpy = jest
-//     .spyOn(stack, 'bundlingRequired', 'get')
-//     .mockReturnValue(false);
-//   const architecture = await getDockerHostArch();
+  const bundlingSpy = jest
+    .spyOn(stack, 'bundlingRequired', 'get')
+    .mockReturnValue(false);
+  const architecture = await getDockerHostArch();
 
-//   // To see this fail, comment out the `if (skip) { return; } code in the PythonFunction constructor
-//   expect(() => {
-//     new PythonFunction(stack, 'basic_app', {
-//       rootDir: path.join(resourcesPath, 'basic_app'),
-//       index: 'handler',
-//       handler: 'lambda_handler',
-//       runtime: Runtime.PYTHON_3_12,
-//       architecture,
-//     });
-//   }).not.toThrow();
+  expect(() => {
+    new PythonFunction(stack, 'basic_app', {
+      rootDir: path.join(resourcesPath, 'basic_app'),
+      index: 'handler',
+      handler: 'lambda_handler',
+      runtime: Runtime.PYTHON_3_12,
+      architecture,
+    });
+  }).not.toThrow();
 
-//   bundlingSpy.mockRestore();
-// });
+  expect(getManagedBuilderContainerNames()).toHaveLength(0);
+  bundlingSpy.mockRestore();
+});
 
-// test('Create a function with workspaces_app', async () => {
-//   const { app, stack } = await createStack('wstest');
+test(
+  'Create a function with workspaces_app',
+  async () => {
+    const { app, stack } = await createStack('wstest');
 
-//   new PythonFunction(stack, 'workspaces_app', {
-//     rootDir: path.join(resourcesPath, 'workspaces_app'),
-//     workspacePackage: 'app',
-//     index: 'app_handler.py',
-//     handler: 'handle_event',
-//     runtime: Runtime.PYTHON_3_10,
-//     architecture: await getDockerHostArch(),
-//   });
+    new PythonFunction(stack, 'workspaces_app', {
+      rootDir: path.join(resourcesPath, 'workspaces_app'),
+      workspacePackage: 'app',
+      index: 'app_handler.py',
+      handler: 'handle_event',
+      runtime: Runtime.PYTHON_3_10,
+      architecture: await getDockerHostArch(),
+    });
 
-//   const template = Template.fromStack(stack);
+    const template = Template.fromStack(stack);
 
-//   template.hasResourceProperties('AWS::Lambda::Function', {
-//     Handler: 'app_handler.handle_event',
-//     Runtime: 'python3.10',
-//     Code: {
-//       S3Bucket: Match.anyValue(),
-//       S3Key: Match.anyValue(),
-//     },
-//   });
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Handler: 'app_handler.handle_event',
+      Runtime: 'python3.10',
+      Code: {
+        S3Bucket: Match.anyValue(),
+        S3Key: Match.anyValue(),
+      },
+    });
 
-//   const functions = Object.values(
-//     template.findResources('AWS::Lambda::Function'),
-//   );
-//   expect(functions).toHaveLength(1);
-//   const contents = await getFunctionAssetContents(functions[0], app);
-//   for (const entry of [
-//     'common',
-//     'pydantic',
-//     'httpx',
-//     'app_handler.py',
-//   ]) {
-//     expect(contents).toContain(entry);
-//   }
-// }, TEST_TIMEOUT);
+    const functions = Object.values(
+      template.findResources('AWS::Lambda::Function'),
+    );
+    expect(functions).toHaveLength(1);
+    const contents = await getFunctionAssetContents(functions[0], app);
+    for (const entry of ['common', 'pydantic', 'httpx', 'app_handler.py']) {
+      expect(contents).toContain(entry);
+    }
+    expect(contents).not.toContain('_editable_impl_common.pth');
+  },
+  TEST_TIMEOUT,
+);
 
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+test('Reuse one builder container for compatible functions', async () => {
+  const { stack } = await createStack('shared');
+  const architecture = await getDockerHostArch();
+
+  new PythonFunction(stack, 'basic_app_one', {
+    rootDir: path.join(resourcesPath, 'basic_app'),
+    index: 'handler.py',
+    handler: 'lambda_handler',
+    runtime: Runtime.PYTHON_3_12,
+    architecture,
+  });
+
+  new PythonFunction(stack, 'basic_app_two', {
+    rootDir: path.join(resourcesPath, 'basic_app'),
+    index: 'handler.py',
+    handler: 'lambda_handler',
+    runtime: Runtime.PYTHON_3_12,
+    architecture,
+  });
+
+  expect(getManagedBuilderContainerNames()).toHaveLength(1);
+});
+
+test('Throw a clear error when CDK_OUTDIR is missing', async () => {
+  const { stack } = await createStack('missing-outdir');
+  process.env.CDK_OUTDIR = undefined;
+
+  expect(() => {
+    new PythonFunction(stack, 'basic_app', {
+      rootDir: path.join(resourcesPath, 'basic_app'),
+      index: 'handler.py',
+      handler: 'lambda_handler',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+    });
+  }).toThrow('CDK_OUTDIR must be set before bundling Lambda assets');
+});
+
+test('Reject non-python runtimes', async () => {
+  const { stack } = await createStack('bad-runtime');
+
+  expect(() => {
+    new PythonFunction(stack, 'node_handler', {
+      rootDir: path.join(resourcesPath, 'basic_app'),
+      index: 'handler.py',
+      handler: 'lambda_handler',
+      runtime: Runtime.NODEJS_20_X,
+    });
+  }).toThrow('Only Python runtimes are supported');
+});
+
+// biome-ignore lint/suspicious/noExplicitAny: function resource shape comes from CDK assertions
 async function getFunctionAssetContents(functionResource: any, app: App) {
-  const assetRelPath = functionResource.Metadata["uv-python-lambda:asset-path"]
+  const assetRelPath = functionResource.Metadata['uv-python-lambda:asset-path'];
   const assetPath = path.join(app.outdir, assetRelPath);
   const contents = await fs.readdir(assetPath);
   return contents;

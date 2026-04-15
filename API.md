@@ -2747,6 +2747,7 @@ Bundling.bundle(options: BundlingProps)
 
 | **Name** | **Type** | **Description** |
 | --- | --- | --- |
+| <code><a href="#uv-python-lambda.Bundling.property.skip">skip</a></code> | <code>boolean</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.entrypoint">entrypoint</a></code> | <code>string[]</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.environment">environment</a></code> | <code>{[ key: string ]: string}</code> | *No description.* |
@@ -2756,6 +2757,16 @@ Bundling.bundle(options: BundlingProps)
 | <code><a href="#uv-python-lambda.Bundling.property.volumes">volumes</a></code> | <code>aws-cdk-lib.DockerVolume[]</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.volumesFrom">volumesFrom</a></code> | <code>string[]</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.workingDirectory">workingDirectory</a></code> | <code>string</code> | *No description.* |
+
+---
+
+##### `skip`<sup>Required</sup> <a name="skip" id="uv-python-lambda.Bundling.property.skip"></a>
+
+```typescript
+public readonly skip: boolean;
+```
+
+- *Type:* boolean
 
 ---
 
