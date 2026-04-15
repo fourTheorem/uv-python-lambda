@@ -16,10 +16,12 @@ import {
 const execAsync = promisify(exec);
 const resourcesPath = path.resolve(__dirname, 'resources');
 const TEST_TIMEOUT = Number(process.env.TEST_TIMEOUT ?? '999999');
+
 const UV_STABILIZING_ENV = {
-  UV_CONCURRENT_BUILDS: '1',
-  UV_CONCURRENT_INSTALLS: '1',
-  UV_CONCURRENT_DOWNLOADS: '8',
+  // Spurious open file count errors have occurred. These mitigations should not be required. WIP
+  // UV_CONCURRENT_BUILDS: '1',
+  // UV_CONCURRENT_INSTALLS: '1',
+  // UV_CONCURRENT_DOWNLOADS: '1',
 };
 
 /**
@@ -101,8 +103,8 @@ test('Create a function from basic_app', async () => {
     template.findResources('AWS::Lambda::Function'),
   );
   expect(functions).toHaveLength(1);
-  const contents = await getFunctionAssetContents(functions[0], app);
-  expect(contents).toContain('handler.py');
+  const asset = await getFunctionAssetContents(functions[0], app);
+  expect(asset.rootEntries).toContain('handler.py');
 });
 
 test('Create a function from basic_app with no .py index extension', async () => {
@@ -182,11 +184,16 @@ test(
       template.findResources('AWS::Lambda::Function'),
     );
     expect(functions).toHaveLength(1);
-    const contents = await getFunctionAssetContents(functions[0], app);
-    for (const entry of ['common', 'pydantic', 'httpx', 'app_handler.py']) {
-      expect(contents).toContain(entry);
-    }
-    expect(contents).not.toContain('_editable_impl_common.pth');
+    const asset = await getFunctionAssetContents(functions[0], app);
+
+    expect(asset.rootEntries).toEqual(
+      expect.arrayContaining(['app', 'common', 'httpx', 'pydantic']),
+    );
+    expect(asset.files).toEqual(
+      expect.arrayContaining(['app/__init__.py', 'app/app_handler.py']),
+    );
+    expect(asset.files).toContain('common/__init__.py');
+    expect(asset.files).not.toContain('_editable_impl_common.pth');
   },
   TEST_TIMEOUT,
 );
@@ -220,8 +227,8 @@ test(
     );
 
     expect(functions).toHaveLength(1);
-    const contents = await getFunctionAssetContents(functions[0], app);
-    expect(contents).toContain('handler.py');
+    const asset = await getFunctionAssetContents(functions[0], app);
+    expect(asset.rootEntries).toContain('handler.py');
   },
   TEST_TIMEOUT,
 );
@@ -281,6 +288,27 @@ test('Reject non-python runtimes', async () => {
 async function getFunctionAssetContents(functionResource: any, app: App) {
   const assetRelPath = functionResource.Metadata['uv-python-lambda:asset-path'];
   const assetPath = path.join(app.outdir, assetRelPath);
-  const contents = await fs.readdir(assetPath);
-  return contents;
+  const rootEntries = await fs.readdir(assetPath);
+  const files: string[] = [];
+
+  async function walk(currentPath: string, relativePath = ''): Promise<void> {
+    const entries = await fs.readdir(currentPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const nextRelativePath = relativePath
+        ? path.posix.join(relativePath, entry.name)
+        : entry.name;
+      const nextPath = path.join(currentPath, entry.name);
+
+      if (entry.isDirectory()) {
+        await walk(nextPath, nextRelativePath);
+      } else {
+        files.push(nextRelativePath);
+      }
+    }
+  }
+
+  await walk(assetPath);
+
+  return { rootEntries, files };
 }
