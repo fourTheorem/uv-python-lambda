@@ -154,7 +154,7 @@ export class Bundling {
       runtime: props.runtime.name,
       architecture: props.architecture ?? Architecture.ARM_64,
       buildArgs: props.buildArgs,
-      rootDir: props.rootDir,
+      rootDir: path.resolve(props.rootDir),
     };
 
     this.containerBuilderKey = `uv-bundling-${hash(hashableProperties)}`;
@@ -167,6 +167,7 @@ export class Bundling {
   private ensureBuilderReady(cdkOutDir: string) {
     const buildImage = this.createDockerImage();
     const hostUvBuildDir = path.join(cdkOutDir, this.containerBuilderKey);
+    const hostRootDir = path.resolve(this.props.rootDir);
 
     mkdirSync(hostUvBuildDir, { recursive: true });
 
@@ -182,7 +183,7 @@ export class Bundling {
       '-v',
       `${hostUvBuildDir}:/uvbuild`,
       '-v',
-      `${this.props.rootDir}:/src:ro`,
+      `${hostRootDir}:/src:ro`,
       buildImage.image,
     ];
 
@@ -289,7 +290,7 @@ function getCdkOutDir() {
   if (!cdkOutDir) {
     throw new Error('CDK_OUTDIR must be set before bundling Lambda assets');
   }
-  return cdkOutDir;
+  return path.resolve(cdkOutDir);
 }
 
 function sanitizeOutputComponent(value: string) {

@@ -183,6 +183,41 @@ test(
   TEST_TIMEOUT,
 );
 
+test(
+  'Create a function when rootDir and CDK_OUTDIR are relative paths',
+  async () => {
+    const relativeRootDir = path.relative(
+      process.cwd(),
+      path.join(resourcesPath, 'basic_app'),
+    );
+    const relativeOutDir = path.relative(
+      process.cwd(),
+      process.env.CDK_OUTDIR as string,
+    );
+
+    process.env.CDK_OUTDIR = relativeOutDir;
+    const { app, stack } = await createStack('relative-paths');
+
+    new PythonFunction(stack, 'basic_app_relative', {
+      rootDir: relativeRootDir,
+      index: 'handler.py',
+      handler: 'lambda_handler',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: await getDockerHostArch(),
+    });
+
+    const template = Template.fromStack(stack);
+    const functions = Object.values(
+      template.findResources('AWS::Lambda::Function'),
+    );
+
+    expect(functions).toHaveLength(1);
+    const contents = await getFunctionAssetContents(functions[0], app);
+    expect(contents).toContain('handler.py');
+  },
+  TEST_TIMEOUT,
+);
+
 test('Reuse one builder container for compatible functions', async () => {
   const { stack } = await createStack('shared');
   const architecture = await getDockerHostArch();
