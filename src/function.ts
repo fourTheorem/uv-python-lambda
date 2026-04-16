@@ -95,10 +95,18 @@ export class PythonFunction extends Function {
       code,
       handler: resolvedHandler,
     });
-    const assetRelPath = path.relative(process.env.CDK_OUTDIR ?? '', code.path);
+    const assetRelPath = path.relative(getCdkOutDir(), code.path);
     (this.node.defaultChild as CfnFunction).addMetadata(
       'uv-python-lambda:asset-path',
       assetRelPath,
     );
   }
+}
+
+function getCdkOutDir() {
+  const cdkOutDir = process.env.CDK_OUTDIR;
+  if (!cdkOutDir) {
+    throw new Error('CDK_OUTDIR must be set before bundling Lambda assets');
+  }
+  return path.resolve(cdkOutDir);
 }
