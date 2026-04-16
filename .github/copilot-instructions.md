@@ -17,8 +17,8 @@
 - `PythonFunction` is a thin orchestration layer: it resolves the Lambda handler name from `index` + `handler`, enforces a Python runtime, defaults to `Architecture.ARM_64` and `Runtime.PYTHON_3_12`, and delegates packaging to `Bundling.bundle(...)`.
 - `src/bundling.ts` owns packaging. It creates a Docker builder image from `resources/`, caches long-lived builder containers by a hash of runtime/architecture/build args/root dir, and returns Lambda code through `Code.fromCustomCommand(...)` so CDK can stage the packaged asset.
 - The Docker-side build flow lives in `resources/entrypoint.sh` and `resources/export.sh`:
-  - `entrypoint.sh` starts the builder container, mounts an overlay filesystem over `/src`, creates a uv virtualenv, runs `uv sync --no-dev --frozen --no-editable`, touches a lock file, and then stays alive.
-  - `export.sh` runs later via `docker exec`; it waits for that lock file, optionally scopes to `--package <workspace>`, exports requirements, and installs dependencies into the requested asset output directory.
+  - `entrypoint.sh` starts the builder container and keeps it available for later packaging/export work.
+  - `export.sh` runs later via `docker exec`; it can optionally scope to `--package <workspace>`, exports requirements, and installs dependencies into the requested asset output directory.
 - `workspacePackage` is the key monorepo/workspace feature: it tells bundling to treat a specific uv workspace package as the Lambda entry package while still resolving dependencies from the workspace root.
 - Tests in `test/function.test.ts` are integration-style CDK packaging tests, not isolated unit tests. They create real CDK apps/stacks, require Docker, use fixture uv projects from `test/resources/`, and inspect the staged asset contents through the custom metadata key `uv-python-lambda:asset-path`.
 
