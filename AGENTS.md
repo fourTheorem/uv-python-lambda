@@ -32,7 +32,7 @@
 - It returns Lambda code through `Code.fromCustomCommand(...)` so CDK can stage the packaged asset.
 
 - The Docker-side flow lives in `resources/entrypoint.sh` and `resources/export.sh`.
-- `entrypoint.sh` starts the builder container, mounts an overlay filesystem over `/src`, creates a uv virtualenv, runs `uv sync --no-dev --frozen --no-editable`, creates a lock file, and stays alive.
+- `entrypoint.sh` starts the builder container, sets up the shared uv cache symlink, creates the lock file used for coordination, and stays alive.
 - `export.sh` runs later via `docker exec`, waits for the lock file, optionally scopes to `--package <workspace>`, exports requirements, and installs dependencies into the requested asset output directory.
 
 ## Workspace behavior
