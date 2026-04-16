@@ -157,10 +157,13 @@ export class Bundling {
     const hashableProperties = {
       runtime: props.runtime.name,
       architecture: props.architecture ?? Architecture.ARM_64,
-      buildArgs: props.buildArgs,
       environment: getBuilderEnvironment(props.environment),
       rootDir: path.resolve(props.rootDir),
-      uvVersion: props.uvVersion ?? DEFAULT_UV_VERSION,
+      builderImage: props.image
+        ? { image: props.image.image }
+        : {
+            buildArgs: this.getDefaultBuilderBuildArgs(),
+          },
     };
 
     this.containerBuilderKey = `uv-bundling-${hash(hashableProperties)}`;
@@ -272,24 +275,13 @@ export class Bundling {
       return existing;
     }
 
-    const buildImage = DockerImage.fromBuild(
-      path.resolve(__dirname, '..', 'resources'),
-      {
-        buildArgs: {
-          ...this.props.buildArgs,
-          UV_VERSION: this.props.uvVersion ?? DEFAULT_UV_VERSION,
-          IMAGE: this.props.runtime.bundlingImage.image,
-          IMAGE_ARCH:
-            this.props.architecture === Architecture.X86_64
-              ? 'x86_64'
-              : 'arm64',
-          PYTHON_VERSION: this.props.runtime.name.slice(6),
-          BUNDLING_IMAGE: this.props.runtime.bundlingImage.image,
-        },
+    const buildImage =
+      this.props.image ??
+      DockerImage.fromBuild(path.resolve(__dirname, '..', 'resources'), {
+        buildArgs: this.getDefaultBuilderBuildArgs(),
         platform: (this.props.architecture ?? Architecture.ARM_64)
           .dockerPlatform,
-      },
-    );
+      });
 
     Bundling.buildImages[imageKey] = buildImage;
     return buildImage;
@@ -314,6 +306,16 @@ export class Bundling {
     return Object.entries(getBuilderEnvironment(this.environment)).sort(
       ([a], [b]) => a.localeCompare(b),
     );
+  }
+
+  private getDefaultBuilderBuildArgs(): Record<string, string> {
+    return {
+      ...this.props.buildArgs,
+      UV_VERSION: this.props.uvVersion ?? DEFAULT_UV_VERSION,
+      BUNDLING_IMAGE:
+        this.props.buildArgs?.BUNDLING_IMAGE ??
+        this.props.runtime.bundlingImage.image,
+    };
   }
 }
 

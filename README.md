@@ -106,5 +106,44 @@ PythonFunction(
 ## Notes
 
 - `index` can be passed as `handler.py` or `handler`.
-- Use `bundling` to pass Docker environment variables, asset excludes, build args, or command hooks.
+- Use `bundling` to pass Docker environment variables, asset excludes, build args, command hooks, or a custom builder image.
+- Set `bundling.buildArgs.BUNDLING_IMAGE` to swap the Python base image used by the default builder.
+- Set `bundling.image` to provide a fully custom builder image.
 - See [API.md](API.md) for the full API reference.
+
+## Customizing The Builder Image
+
+If you want to keep the default `uv-python-lambda` builder logic but use a different Python base image, override `BUNDLING_IMAGE`:
+
+```ts
+new PythonFunction(this, 'Fn', {
+  rootDir: path.join(__dirname, '..', '..', 'services', 'fetcher'),
+  bundling: {
+    buildArgs: {
+      BUNDLING_IMAGE: 'python:3.12-slim',
+    },
+  },
+});
+```
+
+When you override `BUNDLING_IMAGE`, the library still uses its own default
+builder scripts. Those scripts need `bash`, `rsync`, and a few standard Unix
+utilities, so the default builder image now installs them on top of the chosen
+base image. The conditional `RUN if command -v ...` block in
+`resources/Dockerfile` exists to do that across common Debian, RPM, and
+Alpine-based images.
+
+If you need full control over the builder container, pass `bundling.image` instead. Custom images must include Python, `uv`, and the `/opt/uv-python-lambda` scripts expected by this library.
+
+```ts
+import { DockerImage } from 'aws-cdk-lib';
+
+new PythonFunction(this, 'Fn', {
+  rootDir: path.join(__dirname, '..', '..', 'services', 'fetcher'),
+  bundling: {
+    image: DockerImage.fromBuild(path.join(__dirname, '..', '..'), {
+      file: 'docker/uv-python-lambda-builder.Dockerfile',
+    }),
+  },
+});
+```

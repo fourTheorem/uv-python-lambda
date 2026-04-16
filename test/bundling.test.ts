@@ -166,14 +166,20 @@ describe('Bundling', () => {
 
     Reflect.get(bundling, 'createDockerImage').call(bundling);
 
+    const [, options] = fromBuildSpy.mock.calls[0];
+
     expect(fromBuildSpy).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         buildArgs: expect.objectContaining({
+          BUNDLING_IMAGE: Runtime.PYTHON_3_12.bundlingImage.image,
           UV_VERSION: DEFAULT_UV_VERSION,
         }),
       }),
     );
+    expect(options?.buildArgs).not.toHaveProperty('IMAGE');
+    expect(options?.buildArgs).not.toHaveProperty('IMAGE_ARCH');
+    expect(options?.buildArgs).not.toHaveProperty('PYTHON_VERSION');
   });
 
   test('builds the builder image with an overridden uv version', () => {
@@ -194,10 +200,61 @@ describe('Bundling', () => {
       expect.any(String),
       expect.objectContaining({
         buildArgs: expect.objectContaining({
+          BUNDLING_IMAGE: Runtime.PYTHON_3_12.bundlingImage.image,
           UV_VERSION: '0.11.6',
         }),
       }),
     );
+  });
+
+  test('allows overriding the default bundling base image via build args', () => {
+    const fromBuildSpy = jest
+      .spyOn(DockerImage, 'fromBuild')
+      .mockReturnValue({ image: 'mock-image' } as DockerImage);
+
+    const bundling = new Bundling({
+      rootDir: '/tmp/project-custom-base',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+      buildArgs: {
+        BUNDLING_IMAGE: 'python:3.12-slim',
+        PIP_INDEX_URL: 'https://example.com/simple',
+      },
+    });
+
+    Reflect.get(bundling, 'createDockerImage').call(bundling);
+
+    expect(fromBuildSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        buildArgs: {
+          BUNDLING_IMAGE: 'python:3.12-slim',
+          PIP_INDEX_URL: 'https://example.com/simple',
+          UV_VERSION: DEFAULT_UV_VERSION,
+        },
+      }),
+    );
+  });
+
+  test('uses a provided custom builder image without rebuilding the default one', () => {
+    const fromBuildSpy = jest.spyOn(DockerImage, 'fromBuild');
+    const customImage = { image: 'custom-builder' } as DockerImage;
+    const bundling = new Bundling({
+      rootDir: '/tmp/project-custom-image',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+      image: customImage,
+      buildArgs: {
+        BUNDLING_IMAGE: 'python:3.12-slim',
+      },
+    });
+
+    const buildImage = Reflect.get(bundling, 'createDockerImage').call(
+      bundling,
+    ) as DockerImage;
+
+    expect(buildImage).toBe(customImage);
+    expect(fromBuildSpy).not.toHaveBeenCalled();
   });
 
   test('uses different builder cache keys for different uv versions', () => {
@@ -235,6 +292,28 @@ describe('Bundling', () => {
 
     expect(Reflect.get(defaultBundling, 'containerBuilderKey')).not.toEqual(
       Reflect.get(overriddenBundling, 'containerBuilderKey'),
+    );
+  });
+
+  test('uses different builder cache keys for different custom builder images', () => {
+    const firstBundling = new Bundling({
+      rootDir: '/tmp/project-cache-key-image',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+      image: { image: 'custom-builder-one' } as DockerImage,
+    });
+    const secondBundling = new Bundling({
+      rootDir: '/tmp/project-cache-key-image',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+      image: { image: 'custom-builder-two' } as DockerImage,
+      buildArgs: {
+        BUNDLING_IMAGE: 'python:3.12-slim',
+      },
+    });
+
+    expect(Reflect.get(firstBundling, 'containerBuilderKey')).not.toEqual(
+      Reflect.get(secondBundling, 'containerBuilderKey'),
     );
   });
 

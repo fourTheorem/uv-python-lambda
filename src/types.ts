@@ -1,6 +1,7 @@
 import type {
   AssetHashType,
   BundlingFileAccess,
+  DockerImage,
   DockerRunOptions,
 } from 'aws-cdk-lib/core';
 
@@ -33,8 +34,23 @@ export interface BundlingOptions extends DockerRunOptions {
   readonly outputPathSuffix?: string;
 
   /**
-   * Optional build arguments to pass to the default container. This can be used to customize
-   * the index URLs used for installing dependencies.
+   * Custom builder image to use for bundling.
+   *
+   * Use this for full control over the bundling environment. The image must
+   * include Python, `uv`, and the `/opt/uv-python-lambda` scripts expected by
+   * this library.
+   *
+   * To customize only the base image used by the default builder, prefer
+   * `buildArgs.BUNDLING_IMAGE`.
+   *
+   * @default - Build the library default builder image from `resources/`
+   */
+  readonly image?: DockerImage;
+
+  /**
+   * Optional build arguments to pass to the default builder image. This can be
+   * used to customize the index URLs used for installing dependencies, or to
+   * override `BUNDLING_IMAGE` with a different Python base image.
    * This is not used if a custom image is provided.
    *
    * @default - No build arguments.

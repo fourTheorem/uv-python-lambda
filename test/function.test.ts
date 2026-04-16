@@ -233,6 +233,36 @@ test(
   TEST_TIMEOUT,
 );
 
+test(
+  'Create a function from basic_app with a custom minimal bundling image',
+  async () => {
+    const { app, stack } = await createStack('custom-image');
+
+    new PythonFunction(stack, 'basic_app_custom_image', {
+      rootDir: path.join(resourcesPath, 'basic_app'),
+      index: 'handler.py',
+      handler: 'lambda_handler',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: await getDockerHostArch(),
+      bundling: {
+        buildArgs: {
+          BUNDLING_IMAGE: 'python:3.12-slim',
+        },
+      },
+    });
+
+    const template = Template.fromStack(stack);
+    const functions = Object.values(
+      template.findResources('AWS::Lambda::Function'),
+    );
+
+    expect(functions).toHaveLength(1);
+    const asset = await getFunctionAssetContents(functions[0], app);
+    expect(asset.rootEntries).toContain('handler.py');
+  },
+  TEST_TIMEOUT,
+);
+
 test('Reuse one builder container for compatible functions', async () => {
   const { stack } = await createStack('shared');
   const architecture = await getDockerHostArch();
