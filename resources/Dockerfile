@@ -7,31 +7,45 @@ ARG BUNDLING_IMAGE=public.ecr.aws/sam/build-python3.12:latest-arm64
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 FROM ${BUNDLING_IMAGE}
 
-# The default builder scripts depend on a few basic Unix tools that are present
-# in the SAM build images but may be missing from slimmer custom base images
-# such as `python:3.12-slim`.
-# - `bash` is required because `entrypoint.sh` and `export.sh` are bash scripts.
-# - `coreutils` / `util-linux` provide commands used by the scripts such as
-#   `realpath`, `mktemp`, and `flock`-adjacent utilities across distros.
-# - `rsync` is used to stage workspace and source files efficiently.
+# The default builder scripts need:
+# - `bash` because `entrypoint.sh` and `export.sh` are bash scripts
+# - `rsync` for efficient source/workspace staging
+# - GNU `getopt` for argument parsing in `export.sh`
+# - a `realpath` implementation that supports `-m`
 #
-# We detect the distro package manager here so `BUNDLING_IMAGE` can point at a
-# broader range of Debian, RPM, or Alpine-based Python images without requiring
-# users to maintain a separate custom builder image just to install these tools.
-RUN if command -v apt-get >/dev/null 2>&1; then \
+# Many base images already provide some or all of these. Install only what is
+# missing so RPM-based images such as Amazon Linux 2023 can keep using
+# `coreutils-single` without conflicting with the full `coreutils` package.
+RUN set -eu; \
+    packages=''; \
+    if ! command -v bash >/dev/null 2>&1; then \
+      packages="$packages bash"; \
+    fi; \
+    if ! command -v rsync >/dev/null 2>&1; then \
+      packages="$packages rsync"; \
+    fi; \
+    if ! getopt -T >/dev/null 2>&1; then \
+      packages="$packages util-linux"; \
+    fi; \
+    if ! realpath -m / >/dev/null 2>&1; then \
+      packages="$packages coreutils"; \
+    fi; \
+    if [ -z "$packages" ]; then \
+      exit 0; \
+    elif command -v apt-get >/dev/null 2>&1; then \
       apt-get update && \
-      apt-get install -y --no-install-recommends bash coreutils rsync util-linux && \
+      apt-get install -y --no-install-recommends $packages && \
       rm -rf /var/lib/apt/lists/*; \
     elif command -v dnf >/dev/null 2>&1; then \
-      dnf install -y bash coreutils rsync util-linux && \
+      dnf install -y $packages && \
       dnf clean all; \
     elif command -v yum >/dev/null 2>&1; then \
-      yum install -y bash coreutils rsync util-linux && \
+      yum install -y $packages && \
       yum clean all; \
     elif command -v apk >/dev/null 2>&1; then \
-      apk add --no-cache bash coreutils rsync util-linux; \
+      apk add --no-cache $packages; \
     else \
-      echo "Unsupported base image: install bash, coreutils, rsync, and util-linux in the custom BUNDLING_IMAGE" >&2; \
+      echo "Unsupported base image: install bash, rsync, util-linux, and any package providing 'realpath -m' in the custom BUNDLING_IMAGE" >&2; \
       exit 1; \
     fi
 
