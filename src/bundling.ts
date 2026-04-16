@@ -113,6 +113,7 @@ export class Bundling {
   }
 
   public readonly entrypoint?: string[];
+  public readonly command?: string[];
   public readonly volumes?: DockerVolume[];
   public readonly volumesFrom?: string[];
   public readonly environment?: { [key: string]: string };
@@ -132,8 +133,10 @@ export class Bundling {
   private readonly props: BundlingProps;
 
   constructor(props: BundlingProps) {
+    warnForUnsupportedOptions(props);
     this.props = props;
     this.entrypoint = props.entrypoint;
+    this.command = props.command;
     this.volumes = props.volumes;
     this.volumesFrom = props.volumesFrom;
     this.environment = props.environment;
@@ -194,6 +197,24 @@ export class Bundling {
 
     if (builderUser) {
       dockerArgs.push('--user', builderUser);
+    }
+
+    if (this.network) {
+      dockerArgs.push('--network', this.network);
+    }
+
+    if (this.securityOpt) {
+      dockerArgs.push('--security-opt', this.securityOpt);
+    }
+
+    for (const volume of this.volumes ?? []) {
+      const mount = `${volume.hostPath}:${volume.containerPath}`;
+      const consistency = volume.consistency ? `:${volume.consistency}` : '';
+      dockerArgs.push('-v', `${mount}${consistency}`);
+    }
+
+    for (const volumeSource of this.volumesFrom ?? []) {
+      dockerArgs.push('--volumes-from', volumeSource);
     }
 
     for (const [name, value] of this.getBuilderEnvironmentEntries()) {
@@ -357,4 +378,41 @@ function getDockerUserArg() {
   }
 
   return `${process.getuid()}:${process.getgid()}`;
+}
+
+function warnForUnsupportedOptions(props: BundlingProps) {
+  if (props.entrypoint) {
+    emitDeprecatedBundlingOptionWarning(
+      'entrypoint',
+      'This construct manages the reusable builder container entrypoint internally. Use bundling.image for a fully custom builder image.',
+    );
+  }
+
+  if (props.command) {
+    emitDeprecatedBundlingOptionWarning(
+      'command',
+      'This construct manages the reusable builder container command internally. Use bundling.image for a fully custom builder image.',
+    );
+  }
+
+  if (props.workingDirectory) {
+    emitDeprecatedBundlingOptionWarning(
+      'workingDirectory',
+      'The reusable builder container manages its own working directory. Use command hooks or bundling.image if you need different behavior.',
+    );
+  }
+
+  if (props.platform) {
+    emitDeprecatedBundlingOptionWarning(
+      'platform',
+      'The builder image platform is derived from the Lambda architecture option. Set architecture instead.',
+    );
+  }
+}
+
+function emitDeprecatedBundlingOptionWarning(option: string, details: string) {
+  process.emitWarning(
+    `bundling.${option} is deprecated and ignored. ${details}`,
+    'DeprecationWarning',
+  );
 }

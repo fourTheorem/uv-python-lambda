@@ -7,6 +7,13 @@ import type {
 
 /**
  * Options for bundling
+ *
+ * This construct applies `environment`, `user`, `volumes`, `volumesFrom`,
+ * `network`, and `securityOpt` to its reusable builder container.
+ *
+ * The inherited `entrypoint`, `command`, `workingDirectory`, and `platform`
+ * options do not fit this builder-container model and are ignored with a
+ * deprecation warning at runtime.
  */
 export interface BundlingOptions extends DockerRunOptions {
   /**

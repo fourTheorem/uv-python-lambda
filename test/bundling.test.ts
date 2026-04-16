@@ -44,6 +44,42 @@ describe('Bundling', () => {
     jest.restoreAllMocks();
   });
 
+  test('warns when deprecated unsupported bundling options are used', () => {
+    const emitWarningSpy = jest
+      .spyOn(process, 'emitWarning')
+      .mockImplementation(() => undefined);
+
+    new Bundling({
+      rootDir: '/tmp/project-deprecated-options',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+      entrypoint: ['/bin/sh', '-c'],
+      command: ['echo', 'hello'],
+      workingDirectory: '/tmp',
+      platform: 'linux/amd64',
+    });
+
+    expect(emitWarningSpy).toHaveBeenCalledTimes(4);
+    expect(emitWarningSpy).toHaveBeenCalledWith(
+      expect.stringContaining('bundling.entrypoint is deprecated and ignored'),
+      'DeprecationWarning',
+    );
+    expect(emitWarningSpy).toHaveBeenCalledWith(
+      expect.stringContaining('bundling.command is deprecated and ignored'),
+      'DeprecationWarning',
+    );
+    expect(emitWarningSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'bundling.workingDirectory is deprecated and ignored',
+      ),
+      'DeprecationWarning',
+    );
+    expect(emitWarningSpy).toHaveBeenCalledWith(
+      expect.stringContaining('bundling.platform is deprecated and ignored'),
+      'DeprecationWarning',
+    );
+  });
+
   test('returns a no-op command when bundling is skipped', () => {
     const bundling = new Bundling({
       rootDir: '/tmp/project',
@@ -341,6 +377,50 @@ describe('Bundling', () => {
         args: expect.arrayContaining([
           '--user',
           getExpectedDockerUserArg(),
+          'mock-image',
+        ]),
+      }),
+    );
+  });
+
+  test('passes supported docker run options to the builder container', () => {
+    const ensureBuilderContainerMock = jest.fn();
+    const bundlingModule = loadBundlingModule(ensureBuilderContainerMock);
+    jest
+      .spyOn(DockerImage, 'fromBuild')
+      .mockReturnValue({ image: 'mock-image' } as DockerImage);
+
+    const bundling = new bundlingModule.Bundling({
+      rootDir: '/tmp/project-run-options',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+      network: 'test-network',
+      securityOpt: 'label=disable',
+      volumes: [
+        {
+          hostPath: '/tmp/cache',
+          containerPath: '/cache',
+        },
+      ],
+      volumesFrom: ['shared-container'],
+    });
+
+    Reflect.get(bundling, 'ensureBuilderReady').call(
+      bundling,
+      '/tmp/cdk-run-options',
+    );
+
+    expect(ensureBuilderContainerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: expect.arrayContaining([
+          '--network',
+          'test-network',
+          '--security-opt',
+          'label=disable',
+          '-v',
+          '/tmp/cache:/cache',
+          '--volumes-from',
+          'shared-container',
           'mock-image',
         ]),
       }),

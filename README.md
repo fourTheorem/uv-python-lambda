@@ -109,6 +109,8 @@ PythonFunction(
 - Use `bundling` to pass Docker environment variables, asset excludes, build args, command hooks, or a custom builder image.
 - Set `bundling.buildArgs.BUNDLING_IMAGE` to swap the Python base image used by the default builder.
 - Set `bundling.image` to provide a fully custom builder image.
+- `bundling.volumes`, `bundling.volumesFrom`, `bundling.network`, and `bundling.securityOpt` are applied to the reusable builder container.
+- `bundling.entrypoint`, `bundling.command`, `bundling.workingDirectory`, and `bundling.platform` are deprecated in this construct and will emit warnings if used.
 - See [API.md](API.md) for the full API reference.
 
 ## Customizing The Builder Image
@@ -134,6 +136,12 @@ base image. The conditional `RUN if command -v ...` block in
 Alpine-based images.
 
 If you need full control over the builder container, pass `bundling.image` instead. Custom images must include Python, `uv`, and the `/opt/uv-python-lambda` scripts expected by this library.
+
+For the default builder container, this construct also supports a safe subset
+of Docker run options: `volumes`, `volumesFrom`, `network`, and
+`securityOpt`. Other generic Docker run options such as `entrypoint`,
+`command`, `workingDirectory`, and `platform` do not fit the reusable
+builder-container model and are deprecated here.
 
 ```ts
 import { DockerImage } from 'aws-cdk-lib';
