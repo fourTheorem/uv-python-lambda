@@ -365,6 +365,10 @@ function getBuilderEnvironment(
 ): Record<string, string> {
   return {
     UV_PYTHON_LAMBDA_NOFILE_LIMIT: BUILDER_NOFILE_LIMIT.split(':')[0],
+    // Cap uv concurrency to avoid system-wide file descriptor exhaustion
+    // during parallel extraction (os error 23: ENFILE).
+    UV_CONCURRENT_DOWNLOADERS: '4',
+    UV_CONCURRENT_BUILDS: '2',
     ...environment,
   };
 }
