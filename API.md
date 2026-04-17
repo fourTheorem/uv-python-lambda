@@ -1150,6 +1150,13 @@ The timeout configured for this lambda.
 
 Options for bundling.
 
+This construct applies `environment`, `user`, `volumes`, `volumesFrom`,
+`network`, and `securityOpt` to its reusable builder container.
+
+The inherited `entrypoint`, `command`, `workingDirectory`, and `platform`
+options do not fit this builder-container model and are ignored with a
+deprecation warning at runtime.
+
 #### Initializer <a name="Initializer" id="uv-python-lambda.BundlingOptions.Initializer"></a>
 
 ```typescript
@@ -2849,6 +2856,7 @@ Bundling.bundle(options: BundlingProps)
 | --- | --- | --- |
 | <code><a href="#uv-python-lambda.Bundling.property.skip">skip</a></code> | <code>boolean</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | *No description.* |
+| <code><a href="#uv-python-lambda.Bundling.property.command">command</a></code> | <code>string[]</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.entrypoint">entrypoint</a></code> | <code>string[]</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.environment">environment</a></code> | <code>{[ key: string ]: string}</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.network">network</a></code> | <code>string</code> | *No description.* |
@@ -2877,6 +2885,16 @@ public readonly bundlingFileAccess: BundlingFileAccess;
 ```
 
 - *Type:* aws-cdk-lib.BundlingFileAccess
+
+---
+
+##### `command`<sup>Optional</sup> <a name="command" id="uv-python-lambda.Bundling.property.command"></a>
+
+```typescript
+public readonly command: string[];
+```
+
+- *Type:* string[]
 
 ---
 
