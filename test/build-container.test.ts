@@ -122,6 +122,118 @@ describe('build-container', () => {
     );
   });
 
+  test('removes stale running builders for the same key when the owner pid is gone', () => {
+    const spawnSyncMock = jest
+      .fn()
+      .mockReturnValueOnce(dockerResult())
+      .mockReturnValueOnce(dockerResult({ stdout: 'stale-container\n' }))
+      .mockReturnValueOnce(dockerResult({ stdout: '/builder-key-123\n123\n' }))
+      .mockReturnValueOnce(dockerResult())
+      .mockReturnValueOnce(dockerResult())
+      .mockReturnValueOnce(dockerResult({ stdout: 'container-id\n' }))
+      .mockReturnValueOnce(dockerResult({ stdout: 'running' }))
+      .mockReturnValueOnce(dockerResult({ stdout: 'ready' }));
+    const processKillSpy = jest
+      .spyOn(process, 'kill')
+      .mockImplementation(((_pid: number, _signal?: number | NodeJS.Signals) => {
+        const error = new Error('missing process') as NodeJS.ErrnoException;
+        error.code = 'ESRCH';
+        throw error;
+      }) as typeof process.kill);
+
+    const buildContainer = loadBuildContainerModule(spawnSyncMock);
+
+    buildContainer.ensureBuilderContainer({
+      name: 'builder-key-999',
+      builderKey: 'builder-key',
+      args: ['run', 'image'],
+      readyLog: 'ready',
+    });
+
+    expect(processKillSpy).toHaveBeenCalledWith(123, 0);
+    expect(spawnSyncMock).toHaveBeenCalledWith(
+      'docker',
+      ['rm', '-f', 'stale-container'],
+      { encoding: 'utf8' },
+    );
+
+    processKillSpy.mockRestore();
+  });
+
+  test('keeps running builders for the same key when the owner pid is still alive', () => {
+    const spawnSyncMock = jest
+      .fn()
+      .mockReturnValueOnce(dockerResult())
+      .mockReturnValueOnce(dockerResult({ stdout: 'live-container\n' }))
+      .mockReturnValueOnce(dockerResult({ stdout: '/builder-key-456\n456\n' }))
+      .mockReturnValueOnce(dockerResult())
+      .mockReturnValueOnce(dockerResult({ stdout: 'container-id\n' }))
+      .mockReturnValueOnce(dockerResult({ stdout: 'running' }))
+      .mockReturnValueOnce(dockerResult({ stdout: 'ready' }));
+    const processKillSpy = jest
+      .spyOn(process, 'kill')
+      .mockImplementation(
+        ((_pid: number, _signal?: number | NodeJS.Signals) =>
+          true) as typeof process.kill,
+      );
+
+    const buildContainer = loadBuildContainerModule(spawnSyncMock);
+
+    buildContainer.ensureBuilderContainer({
+      name: 'builder-key-999',
+      builderKey: 'builder-key',
+      args: ['run', 'image'],
+      readyLog: 'ready',
+    });
+
+    expect(processKillSpy).toHaveBeenCalledWith(456, 0);
+    expect(spawnSyncMock).not.toHaveBeenCalledWith(
+      'docker',
+      ['rm', '-f', 'live-container'],
+      { encoding: 'utf8' },
+    );
+
+    processKillSpy.mockRestore();
+  });
+
+  test('falls back to the builder name pid when older containers lack an owner label', () => {
+    const spawnSyncMock = jest
+      .fn()
+      .mockReturnValueOnce(dockerResult())
+      .mockReturnValueOnce(dockerResult({ stdout: 'stale-container\n' }))
+      .mockReturnValueOnce(dockerResult({ stdout: '/builder-key-123\n\n' }))
+      .mockReturnValueOnce(dockerResult())
+      .mockReturnValueOnce(dockerResult())
+      .mockReturnValueOnce(dockerResult({ stdout: 'container-id\n' }))
+      .mockReturnValueOnce(dockerResult({ stdout: 'running' }))
+      .mockReturnValueOnce(dockerResult({ stdout: 'ready' }));
+    const processKillSpy = jest
+      .spyOn(process, 'kill')
+      .mockImplementation(((_pid: number, _signal?: number | NodeJS.Signals) => {
+        const error = new Error('missing process') as NodeJS.ErrnoException;
+        error.code = 'ESRCH';
+        throw error;
+      }) as typeof process.kill);
+
+    const buildContainer = loadBuildContainerModule(spawnSyncMock);
+
+    buildContainer.ensureBuilderContainer({
+      name: 'builder-key-999',
+      builderKey: 'builder-key',
+      args: ['run', 'image'],
+      readyLog: 'ready',
+    });
+
+    expect(processKillSpy).toHaveBeenCalledWith(123, 0);
+    expect(spawnSyncMock).toHaveBeenCalledWith(
+      'docker',
+      ['rm', '-f', 'stale-container'],
+      { encoding: 'utf8' },
+    );
+
+    processKillSpy.mockRestore();
+  });
+
   test('times out when the builder never becomes ready', () => {
     const spawnSyncMock = jest
       .fn()
@@ -190,6 +302,8 @@ describe('build-container', () => {
       readyLog: 'ready',
     });
 
+    expect(listeners.has('beforeExit')).toBe(true);
+    expect(listeners.has('exit')).toBe(true);
     listeners.get('SIGINT')?.();
 
     expect(buildContainer.getManagedBuilderContainerNames()).toHaveLength(0);

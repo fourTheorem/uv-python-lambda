@@ -374,7 +374,12 @@ describe('Bundling', () => {
     expect(fromBuildSpy).toHaveBeenCalled();
     expect(ensureBuilderContainerMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        builderKey: expect.stringMatching(/^uv-bundling-/),
         args: expect.arrayContaining([
+          '--label',
+          expect.stringMatching(
+            /^com\.fourtheorem\.uv-python-lambda\.builder-owner-pid=\d+$/,
+          ),
           '--user',
           getExpectedDockerUserArg(),
           'mock-image',
@@ -412,6 +417,7 @@ describe('Bundling', () => {
 
     expect(ensureBuilderContainerMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        builderKey: expect.stringMatching(/^uv-bundling-/),
         args: expect.arrayContaining([
           '--network',
           'test-network',
@@ -421,6 +427,10 @@ describe('Bundling', () => {
           '/tmp/cache:/cache',
           '--volumes-from',
           'shared-container',
+          '--label',
+          expect.stringMatching(
+            /^com\.fourtheorem\.uv-python-lambda\.builder-owner-pid=\d+$/,
+          ),
           'mock-image',
         ]),
       }),

@@ -37,6 +37,8 @@ export const DEFAULT_UV_VERSION = '0.5.27';
 const BUILDER_TOOL_DIR = '/opt/uv-python-lambda';
 const BUILDER_READY_LOG = 'Builder container is ready and waiting';
 const BUILDER_NOFILE_LIMIT = '1048576:1048576';
+const BUILDER_OWNER_PID_LABEL =
+  'com.fourtheorem.uv-python-lambda.builder-owner-pid';
 
 export interface BundlingProps extends BundlingOptions {
   /**
@@ -191,6 +193,8 @@ export class Bundling {
       `${BUILDER_LABEL}=true`,
       '--label',
       `com.fourtheorem.uv-python-lambda.builder-key=${this.containerBuilderKey}`,
+      '--label',
+      `${BUILDER_OWNER_PID_LABEL}=${process.pid}`,
       '--name',
       this.containerBuilderName,
     ];
@@ -232,6 +236,7 @@ export class Bundling {
     );
 
     ensureBuilderContainer({
+      builderKey: this.containerBuilderKey,
       name: this.containerBuilderName,
       args: dockerArgs,
       readyLog: BUILDER_READY_LOG,

@@ -1,10 +1,13 @@
 import { spawnSync } from 'node:child_process';
 
 export const BUILDER_LABEL = 'com.fourtheorem.uv-python-lambda.builder';
+const BUILDER_KEY_LABEL = 'com.fourtheorem.uv-python-lambda.builder-key';
+const BUILDER_PID_LABEL = 'com.fourtheorem.uv-python-lambda.builder-owner-pid';
 
 const managedBuilders = new Map<string, string>();
 
 let cleanupRegistered = false;
+let cleanupInProgress = false;
 
 interface DockerResult {
   readonly stdout: string;
@@ -16,6 +19,7 @@ export interface BuilderContainerOptions {
   readonly name: string;
   readonly args: string[];
   readonly readyLog: string;
+  readonly builderKey?: string;
   readonly timeoutMs?: number;
 }
 
@@ -30,6 +34,9 @@ export function ensureBuilderContainer(
   }
 
   pruneExitedBuilderContainers();
+  if (options.builderKey) {
+    pruneOrphanedBuilderContainers(options.builderKey, options.name);
+  }
   removeContainer(options.name);
 
   const dockerRun = runDockerCommand(options.args);
@@ -57,10 +64,16 @@ export function ensureBuilderContainer(
 }
 
 export function cleanupBuilderContainers() {
+  if (cleanupInProgress) {
+    return;
+  }
+
+  cleanupInProgress = true;
   for (const containerId of managedBuilders.values()) {
     removeContainer(containerId);
   }
   managedBuilders.clear();
+  cleanupInProgress = false;
 }
 
 export function getManagedBuilderContainerNames(): string[] {
@@ -84,6 +97,42 @@ export function pruneExitedBuilderContainers() {
   }
 
   for (const containerId of exited.stdout.split(/\s+/).filter(Boolean)) {
+    removeContainer(containerId);
+  }
+}
+
+function pruneOrphanedBuilderContainers(builderKey: string, currentName: string) {
+  const matching = runDockerCommand([
+    'ps',
+    '-aq',
+    '--filter',
+    `label=${BUILDER_LABEL}=true`,
+    '--filter',
+    `label=${BUILDER_KEY_LABEL}=${builderKey}`,
+  ]);
+
+  if (matching.status !== 0) {
+    throw new Error(
+      `Failed to list builder containers for ${builderKey}: ${matching.stderr}`,
+    );
+  }
+
+  for (const containerId of matching.stdout.split(/\s+/).filter(Boolean)) {
+    const metadata = inspectBuilderMetadata(containerId);
+    if (!metadata) {
+      continue;
+    }
+
+    if (metadata.name === currentName) {
+      continue;
+    }
+
+    const ownerPid =
+      metadata.ownerPid ?? parsePidFromBuilderName(metadata.name, builderKey);
+    if (ownerPid === undefined || isProcessAlive(ownerPid)) {
+      continue;
+    }
+
     removeContainer(containerId);
   }
 }
@@ -145,6 +194,25 @@ function removeContainer(containerIdOrName: string) {
   runDockerCommand(['rm', '-f', containerIdOrName]);
 }
 
+function inspectBuilderMetadata(containerId: string) {
+  const result = runDockerCommand([
+    'inspect',
+    '--format',
+    `{{.Name}}\n{{index .Config.Labels "${BUILDER_PID_LABEL}"}}`,
+    containerId,
+  ]);
+
+  if (result.status !== 0) {
+    return undefined;
+  }
+
+  const [rawName = '', rawOwnerPid = ''] = result.stdout.split('\n');
+  return {
+    name: rawName.replace(/^\//, '').trim(),
+    ownerPid: parseOptionalPid(rawOwnerPid),
+  };
+}
+
 function runDockerCommand(args: string[]): DockerResult {
   const result = spawnSync('docker', args, {
     encoding: 'utf8',
@@ -164,9 +232,12 @@ function registerCleanupHandlers() {
 
   cleanupRegistered = true;
 
-  process.on('exit', cleanupBuilderContainers);
-  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-    process.on(signal, () => {
+  for (const event of ['beforeExit', 'exit'] as const) {
+    process.once(event, cleanupBuilderContainers);
+  }
+
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+    process.once(signal, () => {
       cleanupBuilderContainers();
       process.exit(1);
     });
@@ -175,4 +246,36 @@ function registerCleanupHandlers() {
 
 function sleep(ms: number) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function parseOptionalPid(value: string) {
+  const parsed = Number.parseInt(value.trim(), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function parsePidFromBuilderName(name: string, builderKey: string) {
+  const prefix = `${builderKey}-`;
+  if (!name.startsWith(prefix)) {
+    return undefined;
+  }
+
+  return parseOptionalPid(name.slice(prefix.length));
+}
+
+function isProcessAlive(pid: number) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'EPERM'
+    ) {
+      return true;
+    }
+
+    return false;
+  }
 }
