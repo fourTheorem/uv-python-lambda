@@ -1,4 +1,4 @@
-import { exec } from 'node:child_process';
+import { exec, execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -14,6 +14,7 @@ import {
 } from '../src/build-container';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const resourcesPath = path.resolve(__dirname, 'resources');
 const TEST_TIMEOUT = Number(process.env.TEST_TIMEOUT ?? '999999');
 
@@ -318,6 +319,13 @@ test('Reject non-python runtimes', async () => {
 async function getFunctionAssetContents(functionResource: any, app: App) {
   const assetRelPath = functionResource.Metadata['uv-python-lambda:asset-path'];
   const assetPath = path.join(app.outdir, assetRelPath);
+
+  if (assetPath.endsWith('.zip')) {
+    const files = await listZipEntries(assetPath);
+    const rootEntries = [...new Set(files.map((file) => file.split('/')[0]))];
+    return { rootEntries, files };
+  }
+
   const rootEntries = await fs.readdir(assetPath);
   const files: string[] = [];
 
@@ -341,4 +349,20 @@ async function getFunctionAssetContents(functionResource: any, app: App) {
   await walk(assetPath);
 
   return { rootEntries, files };
+}
+
+async function listZipEntries(assetPath: string): Promise<string[]> {
+  const command = [
+    '-c',
+    'import json, sys, zipfile; archive = zipfile.ZipFile(sys.argv[1]); print(json.dumps([info.filename for info in archive.infolist() if not info.is_dir()]))',
+    assetPath,
+  ];
+
+  try {
+    const { stdout } = await execFileAsync('python3', command);
+    return JSON.parse(stdout) as string[];
+  } catch {
+    const { stdout } = await execFileAsync('python', command);
+    return JSON.parse(stdout) as string[];
+  }
 }

@@ -120,13 +120,15 @@ describe('Bundling', () => {
     expect(afterIndex).toBeGreaterThan(-1);
     expect(decodeCommands(command[beforeIndex + 1])).toEqual(['echo before']);
     expect(decodeCommands(command[afterIndex + 1])).toEqual(['echo after']);
+    expect(command).toContain('--output-zip');
+    expect(command).toContain('/uvbuild/app/asset.zip');
     expect(commandHooks.beforeBundling).toHaveBeenCalledWith(
       '/src',
-      '/uvbuild/app',
+      '/uvbuild/app/bundle',
     );
     expect(commandHooks.afterBundling).toHaveBeenCalledWith(
       '/src',
-      '/uvbuild/app',
+      '/uvbuild/app/bundle',
     );
   });
 
@@ -170,6 +172,44 @@ describe('Bundling', () => {
     expect(command).toContain('UV_CONCURRENT_INSTALLS=1');
     expect(command).toContain('UV_CONCURRENT_BUILDS=2');
     expect(command).toContain('UV_PYTHON_LAMBDA_NOFILE_LIMIT=1048576');
+  });
+
+  test('includes nested cdk output excludes by default', () => {
+    const bundling = new Bundling({
+      rootDir: '/tmp/project-default-excludes',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+      workspacePackage: 'app',
+    });
+
+    const command = Reflect.get(bundling, 'createBundlingCommand').call(
+      bundling,
+    ) as string[];
+
+    expect(command).toContain('--exclude');
+    expect(command).toContain('cdk.out/');
+    expect(command).toContain('**/cdk.out/**');
+    expect(command).toContain('cdk/');
+    expect(command).toContain('**/cdk/**');
+  });
+
+  test('merges custom asset excludes with the library defaults', () => {
+    const bundling = new Bundling({
+      rootDir: '/tmp/project-custom-excludes',
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+      workspacePackage: 'app',
+      assetExcludes: ['dist/', '**/dist/**'],
+    });
+
+    const command = Reflect.get(bundling, 'createBundlingCommand').call(
+      bundling,
+    ) as string[];
+
+    expect(command).toContain('cdk.out/');
+    expect(command).toContain('**/cdk.out/**');
+    expect(command).toContain('dist/');
+    expect(command).toContain('**/dist/**');
   });
 
   test('runs export commands as the host user when uid and gid are available', () => {

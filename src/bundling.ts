@@ -19,7 +19,10 @@ import type { BundlingOptions, ICommandHooks } from './types';
 
 export const HASHABLE_DEPENDENCIES_EXCLUDE = [
   '*.pyc',
+  'cdk.out/**',
+  '**/cdk.out/**',
   'cdk/**',
+  '**/cdk/**',
   '.git/**',
   '.venv/**',
 ];
@@ -28,8 +31,10 @@ export const DEFAULT_ASSET_EXCLUDES = [
   '.venv/',
   'node_modules/',
   'cdk.out/',
+  '**/cdk.out/**',
+  'cdk/',
+  '**/cdk/**',
   '.git/',
-  'cdk',
 ];
 
 export const DEFAULT_UV_VERSION = '0.5.27';
@@ -87,29 +92,48 @@ export class Bundling {
 
   public static bundle(options: BundlingProps): AssetCode {
     const {
-      hashableAssetExclude = HASHABLE_DEPENDENCIES_EXCLUDE,
+      hashableAssetExclude,
       assetHashType = AssetHashType.SOURCE,
       assetHash,
       ...bundlingOptions
     } = options;
+    const mergedHashableAssetExclude = dedupePatterns([
+      ...HASHABLE_DEPENDENCIES_EXCLUDE,
+      ...(hashableAssetExclude ?? []),
+    ]);
 
     const bundling = new Bundling(bundlingOptions);
     const cdkOutDir = getCdkOutDir();
     const hostFunctionOutputDir = bundling.getHostFunctionOutputDir(cdkOutDir);
+    const hostFunctionWorkspaceDir =
+      bundling.getHostFunctionWorkspaceDir(cdkOutDir);
+    const hostFunctionArchivePath =
+      bundling.getHostFunctionArchivePath(cdkOutDir);
 
-    mkdirSync(hostFunctionOutputDir, { recursive: true });
-
-    if (!bundling.skip) {
-      bundling.ensureBuilderReady(cdkOutDir);
+    if (bundling.skip) {
+      mkdirSync(hostFunctionOutputDir, { recursive: true });
+      return Code.fromCustomCommand(
+        hostFunctionOutputDir,
+        bundling.createBundlingCommand(),
+        {
+          assetHash,
+          assetHashType,
+          exclude: mergedHashableAssetExclude,
+        },
+      );
     }
 
+    mkdirSync(hostFunctionWorkspaceDir, { recursive: true });
+
+    bundling.ensureBuilderReady(cdkOutDir);
+
     return Code.fromCustomCommand(
-      hostFunctionOutputDir,
+      hostFunctionArchivePath,
       bundling.createBundlingCommand(),
       {
         assetHash,
         assetHashType,
-        exclude: hashableAssetExclude,
+        exclude: mergedHashableAssetExclude,
       },
     );
   }
@@ -147,7 +171,10 @@ export class Bundling {
     this.securityOpt = props.securityOpt;
     this.network = props.network;
     this.bundlingFileAccess = props.bundlingFileAccess;
-    this.assetExcludes = props.assetExcludes ?? DEFAULT_ASSET_EXCLUDES;
+    this.assetExcludes = dedupePatterns([
+      ...DEFAULT_ASSET_EXCLUDES,
+      ...(props.assetExcludes ?? []),
+    ]);
     this.commandHooks = props.commandHooks;
     this.outputPathSuffix = props.outputPathSuffix;
     this.skip = !!props.skip;
@@ -249,6 +276,7 @@ export class Bundling {
     }
 
     const containerOutputDir = this.getContainerFunctionOutputDir();
+    const containerArchivePath = this.getContainerFunctionArchivePath();
     const command = ['docker', 'exec'];
     const builderUser = getDockerUserArg();
 
@@ -265,6 +293,8 @@ export class Bundling {
       `${BUILDER_TOOL_DIR}/export.sh`,
       '--output',
       containerOutputDir,
+      '--output-zip',
+      containerArchivePath,
     );
 
     if (this.props.workspacePackage) {
@@ -315,16 +345,39 @@ export class Bundling {
 
   private getContainerFunctionOutputDir() {
     return toPosixPath(
-      path.join('/uvbuild', this.functionOutDir, this.outputPathSuffix ?? ''),
+      path.join(
+        '/uvbuild',
+        this.functionOutDir,
+        'bundle',
+        this.outputPathSuffix ?? '',
+      ),
     );
   }
 
   private getHostFunctionOutputDir(cdkOutDir: string) {
     return path.join(
+      this.getHostFunctionWorkspaceDir(cdkOutDir),
+      'bundle',
+      this.outputPathSuffix ?? '',
+    );
+  }
+
+  private getContainerFunctionArchivePath() {
+    return toPosixPath(path.join('/uvbuild', this.functionOutDir, 'asset.zip'));
+  }
+
+  private getHostFunctionWorkspaceDir(cdkOutDir: string) {
+    return path.join(
       cdkOutDir,
       this.containerBuilderKey,
       this.functionOutDir,
-      this.outputPathSuffix ?? '',
+    );
+  }
+
+  private getHostFunctionArchivePath(cdkOutDir: string) {
+    return path.join(
+      this.getHostFunctionWorkspaceDir(cdkOutDir),
+      'asset.zip',
     );
   }
 
@@ -363,6 +416,10 @@ function sanitizeOutputComponent(value: string) {
 
 function toPosixPath(value: string) {
   return value.split(path.sep).join(path.posix.sep);
+}
+
+function dedupePatterns(patterns: string[]) {
+  return [...new Set(patterns)];
 }
 
 function getBuilderEnvironment(

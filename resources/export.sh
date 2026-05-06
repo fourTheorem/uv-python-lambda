@@ -36,7 +36,7 @@ export HOME=/tmp/uv-python-lambda-home
 ulimit -n "$UV_PYTHON_LAMBDA_NOFILE_LIMIT"
 
 print_help() {
-	echo "Usage: $NAME --output <output_dir> [--package <package_name>] [--exclude <glob>] [--before-hooks <base64_json>] [--after-hooks <base64_json>]" >&2
+	echo "Usage: $NAME --output <output_dir> [--output-zip <output_zip>] [--package <package_name>] [--exclude <glob>] [--before-hooks <base64_json>] [--after-hooks <base64_json>]" >&2
 	exit 1
 }
 
@@ -47,10 +47,10 @@ then
 	exit 1
 fi
 
-opts=$(getopt --name "$NAME" --options hp:o:e:vd --longoptions help,package:,output:,exclude:,before-hooks:,after-hooks:,verbose,debug -- "$@") || print_help
+opts=$(getopt --name "$NAME" --options hp:o:e:vd --longoptions help,package:,output:,output-zip:,exclude:,before-hooks:,after-hooks:,verbose,debug -- "$@") || print_help
 eval set -- "$opts"
 
-declare package="" output="" before_hooks="" after_hooks="" verbose=0 debug=0
+declare package="" output="" output_zip="" before_hooks="" after_hooks="" verbose=0 debug=0
 declare -a excludes=()
 while (($#))
 do
@@ -58,6 +58,7 @@ do
 		-h|--help)         print_help;;
 		-p|--package)      package=$2; shift;;
 		-o|--output)       output=$2; shift;;
+		--output-zip)      output_zip=$2; shift;;
 		-e|--exclude)      excludes+=("$2"); shift;;
 		--before-hooks)    before_hooks=$2; shift;;
 		--after-hooks)     after_hooks=$2; shift;;
@@ -82,7 +83,14 @@ while [[ ! -f "$LOCK_FILE" ]]; do
 done
 
 output_dir=$(realpath -m "$output")
+output_zip_path=""
+if [[ -n "$output_zip" ]]; then
+	output_zip_path=$(realpath -m "$output_zip")
+fi
 mkdir -p "$(dirname "$output_dir")"
+if [[ -n "$output_zip_path" ]]; then
+	mkdir -p "$(dirname "$output_zip_path")"
+fi
 
 # Lock the output directory itself so two requests never write to the same asset
 # path concurrently. A single Lambda asset should only be produced once at a
@@ -288,6 +296,32 @@ cd "$working_root"
 run_hooks "$before_hooks"
 run_export_from_directory "$working_root"
 run_hooks "$after_hooks"
+
+if [[ -n "$output_zip_path" ]]; then
+	python - "$output_dir" "$output_zip_path" <<'PY'
+from pathlib import Path
+import sys
+import zipfile
+
+root = Path(sys.argv[1])
+destination = Path(sys.argv[2])
+temporary = destination.with_suffix(destination.suffix + ".tmp")
+
+temporary.unlink(missing_ok=True)
+destination.unlink(missing_ok=True)
+
+with zipfile.ZipFile(
+    temporary,
+    mode="w",
+    compression=zipfile.ZIP_DEFLATED,
+) as archive:
+    for path in sorted(root.rglob("*")):
+        if path.is_file():
+            archive.write(path, path.relative_to(root).as_posix())
+
+temporary.replace(destination)
+PY
+fi
 
 # Historical cleanup: older iterations wrote a file lock into the asset dir
 rm -f "$output_dir/.lock"
