@@ -187,8 +187,12 @@ copy_local_workspace_sources() {
 	# Copy only the package directories uv identified as local workspace members.
 	# This is much cheaper than cloning the whole project tree for every function.
 	for relative_path in "${local_paths[@]}"; do
+		local -a rsync_args=('-a')
+		for exclude in "${excludes[@]}"; do
+			rsync_args+=("--exclude=$exclude")
+		done
 		mkdir -p "$local_workspace_root/$(dirname "$relative_path")"
-		rsync -a "$source_root/${relative_path#./}/" "$local_workspace_root/${relative_path#./}/"
+		rsync "${rsync_args[@]}" "$source_root/${relative_path#./}/" "$local_workspace_root/${relative_path#./}/"
 	done
 
 	(

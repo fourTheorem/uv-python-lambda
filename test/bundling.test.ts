@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import { DockerImage } from 'aws-cdk-lib';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Bundling, DEFAULT_UV_VERSION } from '../src/bundling';
@@ -191,6 +192,42 @@ describe('Bundling', () => {
     expect(command).toContain('**/cdk.out/**');
     expect(command).toContain('cdk/');
     expect(command).toContain('**/cdk/**');
+  });
+
+  test('adds a source-relative CDK output exclude when the output directory is inside the project root', () => {
+    const rootDir = path.join('/tmp', 'project-nested-cdk-out');
+    const bundling = new Bundling({
+      rootDir,
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+      workspacePackage: 'app',
+    });
+
+    const command = Reflect.get(bundling, 'createBundlingCommand').call(
+      bundling,
+      path.join(rootDir, 'infra', 'cdk', 'cdk.out'),
+    ) as string[];
+
+    expect(command).toContain('infra/cdk/cdk.out/');
+    expect(command).toContain('infra/cdk/cdk.out/**');
+  });
+
+  test('does not add a source-relative CDK output exclude when the output directory is outside the project root', () => {
+    const rootDir = path.join('/tmp', 'project-external-cdk-out');
+    const bundling = new Bundling({
+      rootDir,
+      runtime: Runtime.PYTHON_3_12,
+      architecture: Architecture.X86_64,
+      workspacePackage: 'app',
+    });
+
+    const command = Reflect.get(bundling, 'createBundlingCommand').call(
+      bundling,
+      path.join('/tmp', 'external-cdk.out'),
+    ) as string[];
+
+    expect(command).not.toContain('../external-cdk.out/');
+    expect(command).not.toContain('../external-cdk.out/**');
   });
 
   test('merges custom asset excludes with the library defaults', () => {

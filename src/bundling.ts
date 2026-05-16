@@ -20,6 +20,7 @@ import type { BundlingOptions, ICommandHooks } from './types';
 export const HASHABLE_DEPENDENCIES_EXCLUDE = [
   '*.pyc',
   'cdk.out/**',
+  '**/cdk.out/',
   '**/cdk.out/**',
   'cdk/**',
   '**/cdk/**',
@@ -31,6 +32,7 @@ export const DEFAULT_ASSET_EXCLUDES = [
   '.venv/',
   'node_modules/',
   'cdk.out/',
+  '**/cdk.out/',
   '**/cdk.out/**',
   'cdk/',
   '**/cdk/**',
@@ -97,13 +99,15 @@ export class Bundling {
       assetHash,
       ...bundlingOptions
     } = options;
-    const mergedHashableAssetExclude = dedupePatterns([
-      ...HASHABLE_DEPENDENCIES_EXCLUDE,
-      ...(hashableAssetExclude ?? []),
-    ]);
-
     const bundling = new Bundling(bundlingOptions);
     const cdkOutDir = getCdkOutDir();
+    const sourceRelativeCdkOutExcludes =
+      bundling.getSourceRelativeCdkOutExcludes(cdkOutDir);
+    const mergedHashableAssetExclude = dedupePatterns([
+      ...HASHABLE_DEPENDENCIES_EXCLUDE,
+      ...sourceRelativeCdkOutExcludes,
+      ...(hashableAssetExclude ?? []),
+    ]);
     const hostFunctionOutputDir = bundling.getHostFunctionOutputDir(cdkOutDir);
     const hostFunctionWorkspaceDir =
       bundling.getHostFunctionWorkspaceDir(cdkOutDir);
@@ -114,7 +118,7 @@ export class Bundling {
       mkdirSync(hostFunctionOutputDir, { recursive: true });
       return Code.fromCustomCommand(
         hostFunctionOutputDir,
-        bundling.createBundlingCommand(),
+        bundling.createBundlingCommand(cdkOutDir),
         {
           assetHash,
           assetHashType,
@@ -129,7 +133,7 @@ export class Bundling {
 
     return Code.fromCustomCommand(
       hostFunctionArchivePath,
-      bundling.createBundlingCommand(),
+      bundling.createBundlingCommand(cdkOutDir),
       {
         assetHash,
         assetHashType,
@@ -270,7 +274,7 @@ export class Bundling {
     });
   }
 
-  private createBundlingCommand(): string[] {
+  private createBundlingCommand(cdkOutDir?: string): string[] {
     if (this.skip) {
       return [process.execPath, '-e', 'process.exit(0)'];
     }
@@ -301,7 +305,7 @@ export class Bundling {
       command.push('--package', this.props.workspacePackage);
     }
 
-    for (const exclude of this.assetExcludes) {
+    for (const exclude of this.getAssetExcludes(cdkOutDir)) {
       command.push('--exclude', exclude);
     }
 
@@ -367,18 +371,37 @@ export class Bundling {
   }
 
   private getHostFunctionWorkspaceDir(cdkOutDir: string) {
-    return path.join(
-      cdkOutDir,
-      this.containerBuilderKey,
-      this.functionOutDir,
-    );
+    return path.join(cdkOutDir, this.containerBuilderKey, this.functionOutDir);
   }
 
   private getHostFunctionArchivePath(cdkOutDir: string) {
-    return path.join(
-      this.getHostFunctionWorkspaceDir(cdkOutDir),
-      'asset.zip',
+    return path.join(this.getHostFunctionWorkspaceDir(cdkOutDir), 'asset.zip');
+  }
+
+  private getAssetExcludes(cdkOutDir?: string) {
+    return dedupePatterns([
+      ...this.assetExcludes,
+      ...(cdkOutDir ? this.getSourceRelativeCdkOutExcludes(cdkOutDir) : []),
+    ]);
+  }
+
+  private getSourceRelativeCdkOutExcludes(cdkOutDir: string) {
+    const relativeCdkOutDir = path.relative(
+      path.resolve(this.props.rootDir),
+      path.resolve(cdkOutDir),
     );
+
+    if (
+      !relativeCdkOutDir ||
+      relativeCdkOutDir === '..' ||
+      relativeCdkOutDir.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(relativeCdkOutDir)
+    ) {
+      return [];
+    }
+
+    const normalizedCdkOutDir = toPosixPath(relativeCdkOutDir);
+    return [`${normalizedCdkOutDir}/`, `${normalizedCdkOutDir}/**`];
   }
 
   private getBuilderEnvironmentEntries(): [string, string][] {
