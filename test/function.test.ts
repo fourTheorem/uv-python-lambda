@@ -287,6 +287,72 @@ test('Reuse one builder container for compatible functions', async () => {
   expect(getManagedBuilderContainerNames()).toHaveLength(1);
 });
 
+test(
+  'Reclaim a stale export lock left by a dead process',
+  async () => {
+    const { app, stack } = await createStack('stale-lock');
+    const architecture = await getDockerHostArch();
+
+    // `Code.fromCustomCommand` (which `Bundling.bundle()` calls) runs the
+    // bundling command synchronously via `spawnSync` as part of construction
+    // — bundling is not deferred to `Template.fromStack()`. So the first
+    // function's construction both warms the shared builder container and
+    // completes its own bundle; only the *second* function's construction is
+    // where a stale lock injected in between would actually be encountered.
+    new PythonFunction(stack, 'basic_app_one', {
+      rootDir: path.join(resourcesPath, 'basic_app'),
+      index: 'handler.py',
+      handler: 'lambda_handler',
+      runtime: Runtime.PYTHON_3_12,
+      architecture,
+    });
+
+    const [containerName] = getManagedBuilderContainerNames();
+    expect(containerName).toBeDefined();
+
+    // Simulate a process that held the shared export lock and was killed
+    // before its EXIT trap could remove it (e.g. SIGKILL, a closed terminal,
+    // or a sleeping host). 999999 will never correspond to a real process in
+    // this fresh container's PID namespace, so the recorded lock is stale.
+    // Without stale-lock reclamation, export.sh's wait loop never notices
+    // the holder is dead and every subsequent bundle for this builder hangs
+    // forever, since /uvbuild is host-mounted and nothing else removes it.
+    await execFileAsync('docker', [
+      'exec',
+      containerName,
+      'sh',
+      '-c',
+      'mkdir -p /uvbuild/.uv-python-lambda-export.lock && echo 999999 > /uvbuild/.uv-python-lambda-export.lock/pid',
+    ]);
+
+    // This construction's bundling call runs synchronously right here, while
+    // the stale lock above is in place — this is what would hang pre-fix.
+    new PythonFunction(stack, 'basic_app_two', {
+      rootDir: path.join(resourcesPath, 'basic_app'),
+      index: 'handler.py',
+      handler: 'lambda_handler',
+      runtime: Runtime.PYTHON_3_12,
+      architecture,
+    });
+
+    expect(getManagedBuilderContainerNames()).toHaveLength(1);
+
+    const template = Template.fromStack(stack);
+    const functions = Object.values(
+      template.findResources('AWS::Lambda::Function'),
+    );
+
+    expect(functions).toHaveLength(2);
+    const asset = await getFunctionAssetContents(functions[1], app);
+    expect(asset.rootEntries).toContain('handler.py');
+  },
+  // Explicit, bounded timeout (rather than the suite's effectively-unbounded
+  // default): if lock reclamation regresses, this must fail eventually
+  // instead of hanging the run indefinitely. Generous enough to cover a cold
+  // builder-image build on a first run.
+  120_000,
+);
+
 test('Throw a clear error when CDK_OUTDIR is missing', async () => {
   const { stack } = await createStack('missing-outdir');
   process.env.CDK_OUTDIR = undefined;

@@ -92,22 +92,53 @@ if [[ -n "$output_zip_path" ]]; then
 	mkdir -p "$(dirname "$output_zip_path")"
 fi
 
+# Locks are advisory directories created with `mkdir`, which is atomic and
+# can be used as a mutex. The holder writes its own PID inside so a
+# contending caller can distinguish a lock that's still legitimately held from
+# a stale one left behind by a process that was killed before its EXIT trap
+# could run.
+# These lock directories live under the host-mounted /uvbuild, so
+# an unreclaimed stale lock doesn't just affect the process that leaked it —
+# it can stall every future export.sh call for this builder/asset forever, since
+# nothing else will ever remove it.
+acquire_lock() {
+	local lock=$1
+	local waited=0
+
+	while true; do
+		if mkdir "$lock" 2>/dev/null; then
+			echo $$ > "$lock/pid"
+			return
+		fi
+
+		local holder_pid
+		holder_pid=$(cat "$lock/pid" 2>/dev/null || true)
+		if [[ -n "$holder_pid" ]] && ! kill -0 "$holder_pid" 2>/dev/null; then
+			echo "$NAME: reclaiming stale lock $lock held by dead pid $holder_pid" >&2
+			rm -rf "$lock"
+			continue
+		fi
+
+		sleep 0.1
+		waited=$((waited + 1))
+		if ((waited % 300 == 0)); then
+			echo "$NAME: still waiting on lock $lock (held by pid ${holder_pid:-unknown}) after $((waited / 10))s" >&2
+		fi
+	done
+}
+
 # Lock the output directory itself so two requests never write to the same asset
 # path concurrently. A single Lambda asset should only be produced once at a
 # time anyway.
 lock_dir="${output_dir}.lock"
-while ! mkdir "$lock_dir" 2>/dev/null; do
-	sleep 0.1
-done
+acquire_lock "$lock_dir"
 
 # Lock the entire builder export path. One builder container is intentionally
 # shared across compatible functions, but overlapping uv installs against the
 # same cache and mounted build directory can produce large spikes in file usage.
 # Serializing here keeps the warm-builder optimisation while avoiding contention.
 builder_lock_dir=/uvbuild/.uv-python-lambda-export.lock
-while ! mkdir "$builder_lock_dir" 2>/dev/null; do
-	sleep 0.1
-done
+acquire_lock "$builder_lock_dir"
 
 # These hold temp directories created later in the script. Keeping them in
 # globals lets the EXIT trap clean them up from any failure point.
