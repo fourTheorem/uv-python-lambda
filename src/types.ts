@@ -7,8 +7,25 @@ import type {
 
 /**
  * Options for bundling
+ *
+ * This construct applies `environment`, `user`, `volumes`, `volumesFrom`,
+ * `network`, and `securityOpt` to its reusable builder container.
+ *
+ * The inherited `entrypoint`, `command`, `workingDirectory`, and `platform`
+ * options do not fit this builder-container model and are ignored with a
+ * deprecation warning at runtime.
  */
 export interface BundlingOptions extends DockerRunOptions {
+  /**
+   * uv version to install in the builder image.
+   *
+   * It is best practice to pin this for reproducible builds. If omitted, the
+   * library default is used.
+   *
+   * @default - 0.5.27
+   */
+  readonly uvVersion?: string;
+
   /**
    * List of file patterns to exclude when copying assets from source for bundling.
    *
@@ -24,17 +41,23 @@ export interface BundlingOptions extends DockerRunOptions {
   readonly outputPathSuffix?: string;
 
   /**
-   * Docker image to use for bundling. If no options are provided, the default bundling image
-   * will be used. Dependencies will be installed using the default packaging commands
-   * and copied over from into the Lambda asset.
+   * Custom builder image to use for bundling.
    *
-   * @default - Default bundling image.
+   * Use this for full control over the bundling environment. The image must
+   * include Python, `uv`, and the `/opt/uv-python-lambda` scripts expected by
+   * this library.
+   *
+   * To customize only the base image used by the default builder, prefer
+   * `buildArgs.BUNDLING_IMAGE`.
+   *
+   * @default - Build the library default builder image from `resources/`
    */
   readonly image?: DockerImage;
 
   /**
-   * Optional build arguments to pass to the default container. This can be used to customize
-   * the index URLs used for installing dependencies.
+   * Optional build arguments to pass to the default builder image. This can be
+   * used to customize the index URLs used for installing dependencies, or to
+   * override `BUNDLING_IMAGE` with a different Python base image.
    * This is not used if a custom image is provided.
    *
    * @default - No build arguments.

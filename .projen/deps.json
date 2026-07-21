@@ -13,6 +13,10 @@
       "type": "build"
     },
     {
+      "name": "@types/object-hash",
+      "type": "build"
+    },
+    {
       "name": "commit-and-tag-version",
       "version": "^12",
       "type": "build"
@@ -41,12 +45,12 @@
     },
     {
       "name": "jsii-rosetta",
-      "version": "~5.5.0",
+      "version": "~5.9.0",
       "type": "build"
     },
     {
       "name": "jsii",
-      "version": "~5.5.0",
+      "version": "~5.9.0",
       "type": "build"
     },
     {
@@ -64,6 +68,10 @@
     {
       "name": "typescript",
       "type": "build"
+    },
+    {
+      "name": "object-hash",
+      "type": "bundled"
     },
     {
       "name": "aws-cdk-lib",

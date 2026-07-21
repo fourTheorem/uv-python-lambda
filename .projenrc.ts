@@ -1,12 +1,14 @@
 import { awscdk } from 'projen';
 import { JobPermission } from 'projen/lib/github/workflows-model';
+// import { NodePackageManager } from 'projen/lib/javascript';
 const project = new awscdk.AwsCdkConstructLibrary({
   author: 'Eoin Shanaghy',
   authorAddress: 'eoin.shanaghy@fourtheorem.com',
+  // packageManager: NodePackageManager.YARN_CLASSIC,
   cdkVersion: '2.161.1',
   constructsVersion: '10.3.0',
   defaultReleaseBranch: 'main',
-  jsiiVersion: '~5.5.0',
+  jsiiVersion: '~5.9.0',
   name: 'uv-python-lambda',
   projenrcTs: true,
   repositoryUrl: 'https://github.com/fourTheorem/uv-python-lambda',
@@ -14,17 +16,30 @@ const project = new awscdk.AwsCdkConstructLibrary({
     distName: 'uv-python-lambda',
     module: 'uv_python_lambda',
   },
+  tsconfig: {
+    compilerOptions: {
+      esModuleInterop: true,
+    },
+  },
   // cdkVersion: '2.1.0',    /* CDK version to use. */
   // cdkDependencies: [],     /* CDK dependencies of this module. */
+  bundledDeps: [
+    'object-hash',
+  ] /* Dependencies which should be bundled in the package. */,
   // deps: [],                /* Runtime dependencies of this module. */
   // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */
-  devDeps: ['@biomejs/biome'] /* Build dependencies for this module. */,
+  devDeps: [
+    '@biomejs/biome',
+    '@types/object-hash',
+  ] /* Build dependencies for this module. */,
   // packageName: undefined,  /* The "name" in package.json. */
   jestOptions: {
     extraCliOptions: ['--testTimeout=300000'],
   },
+  gitignore: ['.vscode/'],
   eslint: false,
 });
+
 const biomeWorkflow = project.github?.addWorkflow('biome');
 biomeWorkflow?.on({
   pullRequest: {

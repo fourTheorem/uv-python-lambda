@@ -9,5 +9,12 @@ dependencies = [
     "pydantic>=2.9.2",
 ]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [tool.uv.sources]
 common = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/app"]
