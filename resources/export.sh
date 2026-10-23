@@ -27,6 +27,9 @@ export UV_LINK_MODE=hardlink
 export UV_NO_INSTALLER_METADATA=1
 export UV_PYTHON_LAMBDA_NOFILE_LIMIT="${UV_PYTHON_LAMBDA_NOFILE_LIMIT:-1048576}"
 export HOME=/tmp/uv-python-lambda-home
+# Makes the bytecode compiler write hash-based .pyc files, which do not embed the mtime of the source.
+# Together with the fixed timestamps in the zip, the same inputs give the same asset hash.
+export SOURCE_DATE_EPOCH=315532800
 
 # Raise the per-process FD limit inside the container. The builder
 # container itself is already started with a large nofile ulimit, this mirrors
@@ -333,6 +336,8 @@ run_export_from_directory "$working_root"
 run_hooks "$after_hooks"
 
 if [[ -n "$output_zip_path" ]]; then
+	# Remove a stale lock file first so it does not enter the archive.
+	rm -f "$output_dir/.lock"
 	python - "$output_dir" "$output_zip_path" <<'PY'
 from pathlib import Path
 import sys
@@ -345,6 +350,9 @@ temporary = destination.with_suffix(destination.suffix + ".tmp")
 temporary.unlink(missing_ok=True)
 destination.unlink(missing_ok=True)
 
+# A fixed timestamp keeps the archive bytes, and so the CDK asset hash, independent of install time.
+FIXED_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
+
 with zipfile.ZipFile(
     temporary,
     mode="w",
@@ -352,7 +360,10 @@ with zipfile.ZipFile(
 ) as archive:
     for path in sorted(root.rglob("*")):
         if path.is_file():
-            archive.write(path, path.relative_to(root).as_posix())
+            info = zipfile.ZipInfo.from_file(path, path.relative_to(root).as_posix())
+            info.date_time = FIXED_TIMESTAMP
+            info.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(info, path.read_bytes())
 
 temporary.replace(destination)
 PY
