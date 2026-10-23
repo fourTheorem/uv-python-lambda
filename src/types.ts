@@ -112,6 +112,33 @@ export interface BundlingOptions extends DockerRunOptions {
   readonly commandHooks?: ICommandHooks;
 
   /**
+   * Directory for a content-addressed cache of bundled archives.
+   *
+   * With a cache directory, a bundle whose inputs have not changed is copied
+   * from the cache instead of rebuilt, and no builder container starts. The key
+   * covers the workspace package, the local workspace members that it depends
+   * on, the lock entries of its dependencies, and the builder settings. A change
+   * to any other part of the repository leaves the key unchanged. Restore the
+   * directory between CI runs to share it.
+   *
+   * Without a `uv.lock` or a resolvable `workspacePackage`, the bundle is built
+   * without the cache.
+   *
+   * @default - no cache
+   */
+  readonly bundleCacheDir?: string;
+
+  /**
+   * Paths relative to `rootDir` that also determine the bundle.
+   *
+   * Use this for files outside the dependency closure that the build or the
+   * command hooks read. It applies only with `bundleCacheDir`.
+   *
+   * @default - none
+   */
+  readonly bundleCacheInputs?: string[];
+
+  /**
    * Which option to use to copy the source files to the docker container and output files back
    * @default - BundlingFileAccess.BIND_MOUNT
    */

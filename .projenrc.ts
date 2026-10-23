@@ -25,6 +25,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
   // cdkDependencies: [],     /* CDK dependencies of this module. */
   bundledDeps: [
     'object-hash',
+    'smol-toml',
   ] /* Dependencies which should be bundled in the package. */,
   // deps: [],                /* Runtime dependencies of this module. */
   // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */

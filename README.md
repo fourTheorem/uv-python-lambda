@@ -103,6 +103,49 @@ PythonFunction(
 )
 ```
 
+## Caching bundles
+
+By default, every synth runs the export for every function, even when nothing changed.
+Set `bundling.bundleCacheDir` to keep complete bundled archives in a content-addressed
+cache. A function whose inputs are unchanged copies its archive from the cache,
+and no builder container starts.
+
+```ts
+new PythonFunction(this, 'WorkspaceFn', {
+  rootDir: path.join(__dirname, '..', '..'),
+  workspacePackage: 'fetcher',
+  index: 'fetcher_lambda.py',
+  bundling: {
+    bundleCacheDir: path.join(__dirname, '..', '.cache', 'uv-python-lambda'),
+  },
+});
+```
+
+The cache key covers:
+ - the files of the workspace package
+ - the files of each local workspace member that it depends on, directly or through other members
+ - the `uv.lock` entries of every third-party package that the export installs
+ - the workspace `pyproject.toml`
+ - the builder settings.
+
+A change elsewhere in the repository does not change the key. For the
+dependencies, the key counts what `uv export --no-dev` installs: runtime
+dependencies only, and no dev dependencies. An optional dependency counts only
+when a package asks for its extra, for example `ts-adapters[observation-read]`.
+
+Without `workspacePackage`, the project at `rootDir` is the Lambda. The key then
+covers every file under `rootDir`, the whole `uv.lock`, and the same builder
+settings. This is the case for a single project that is not a monorepo.
+
+- The cache never expires entries. Restore and save the directory between CI
+  runs, and prune it when it grows.
+- Use `bundling.bundleCacheInputs` for files outside the closure that a build
+  or a command hook reads. The paths are relative to `rootDir`.
+- A floating base image tag, such as `latest`, is part of the key by name only.
+  Pin the tag in `buildArgs.BUNDLING_IMAGE` to pick up a new image.
+- Without a `uv.lock`, or when `workspacePackage` is not in the lock, the
+  function is built without the cache.
+
 ## Notes
 
 - `index` can be passed as `handler.py` or `handler`.

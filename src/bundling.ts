@@ -15,6 +15,11 @@ import {
   type Runtime,
 } from 'aws-cdk-lib/aws-lambda';
 import { BUILDER_LABEL, ensureBuilderContainer } from './build-container';
+import {
+  BundleCache,
+  computeBundleCacheKey,
+  hashDirectory,
+} from './bundle-cache';
 import type { BundlingOptions, ICommandHooks } from './types';
 
 export const HASHABLE_DEPENDENCIES_EXCLUDE = [
@@ -40,6 +45,8 @@ export const DEFAULT_ASSET_EXCLUDES = [
 ];
 
 export const DEFAULT_UV_VERSION = '0.5.27';
+
+const NOOP_COMMAND = [process.execPath, '-e', 'process.exit(0)'];
 
 const BUILDER_TOOL_DIR = '/opt/uv-python-lambda';
 const BUILDER_READY_LOG = 'Builder container is ready and waiting';
@@ -129,9 +136,19 @@ export class Bundling {
 
     mkdirSync(hostFunctionWorkspaceDir, { recursive: true });
 
+    const cache = bundling.getBundleCache(cdkOutDir);
+    if (cache?.cache.has(cache.key)) {
+      cache.cache.restore(cache.key, hostFunctionArchivePath);
+      return Code.fromCustomCommand(hostFunctionArchivePath, NOOP_COMMAND, {
+        assetHash,
+        assetHashType,
+        exclude: mergedHashableAssetExclude,
+      });
+    }
+
     bundling.ensureBuilderReady(cdkOutDir);
 
-    return Code.fromCustomCommand(
+    const code = Code.fromCustomCommand(
       hostFunctionArchivePath,
       bundling.createBundlingCommand(cdkOutDir),
       {
@@ -140,6 +157,8 @@ export class Bundling {
         exclude: mergedHashableAssetExclude,
       },
     );
+    cache?.cache.store(cache.key, hostFunctionArchivePath);
+    return code;
   }
 
   public readonly entrypoint?: string[];
@@ -209,6 +228,49 @@ export class Bundling {
     );
   }
 
+  /**
+   * Resolves the cache entry of this bundle, or `undefined` when caching is off
+   * or the bundle's inputs cannot be determined.
+   */
+  private getBundleCache(
+    cdkOutDir: string,
+  ): { cache: BundleCache; key: string } | undefined {
+    if (!this.props.bundleCacheDir) {
+      return undefined;
+    }
+
+    const containerOutputDir = this.getContainerFunctionOutputDir();
+    const key = computeBundleCacheKey({
+      rootDir: this.props.rootDir,
+      workspacePackage: this.props.workspacePackage,
+      assetExcludes: this.getAssetExcludes(cdkOutDir),
+      extraInputs: this.props.bundleCacheInputs ?? [],
+      buildInputs: {
+        builderScripts: getBuilderScriptsHash(),
+        runtime: this.props.runtime.name,
+        architecture: (this.props.architecture ?? Architecture.ARM_64)
+          .dockerPlatform,
+        builderImage: this.props.image
+          ? { image: this.props.image.image }
+          : { buildArgs: this.getDefaultBuilderBuildArgs() },
+        environment: this.getBuilderEnvironmentEntries(),
+        outputPathSuffix: this.outputPathSuffix ?? '',
+        beforeHooks: this.commandHooks?.beforeBundling(
+          '/src',
+          containerOutputDir,
+        ),
+        afterHooks: this.commandHooks?.afterBundling(
+          '/src',
+          containerOutputDir,
+        ),
+      },
+    });
+
+    return key
+      ? { cache: new BundleCache(path.resolve(this.props.bundleCacheDir)), key }
+      : undefined;
+  }
+
   private ensureBuilderReady(cdkOutDir: string) {
     const buildImage = this.createDockerImage();
     const hostUvBuildDir = path.join(cdkOutDir, this.containerBuilderKey);
@@ -276,7 +338,7 @@ export class Bundling {
 
   private createBundlingCommand(cdkOutDir?: string): string[] {
     if (this.skip) {
-      return [process.execPath, '-e', 'process.exit(0)'];
+      return NOOP_COMMAND;
     }
 
     const containerOutputDir = this.getContainerFunctionOutputDir();
@@ -419,6 +481,15 @@ export class Bundling {
         this.props.runtime.bundlingImage.image,
     };
   }
+}
+
+let builderScriptsHash: string | undefined;
+
+function getBuilderScriptsHash() {
+  builderScriptsHash ??= hashDirectory(
+    path.resolve(__dirname, '..', 'resources'),
+  );
+  return builderScriptsHash;
 }
 
 function encodeCommands(commands: string[]) {

@@ -1183,6 +1183,8 @@ const bundlingOptions: BundlingOptions = { ... }
 | <code><a href="#uv-python-lambda.BundlingOptions.property.assetHash">assetHash</a></code> | <code>string</code> | Specify a custom hash for this asset. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.assetHashType">assetHashType</a></code> | <code>aws-cdk-lib.AssetHashType</code> | Determines how asset hash is calculated. Assets will get rebuild and uploaded only if their hash has changed. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the default builder image. |
+| <code><a href="#uv-python-lambda.BundlingOptions.property.bundleCacheDir">bundleCacheDir</a></code> | <code>string</code> | Directory for a content-addressed cache of bundled archives. |
+| <code><a href="#uv-python-lambda.BundlingOptions.property.bundleCacheInputs">bundleCacheInputs</a></code> | <code>string[]</code> | Paths relative to `rootDir` that also determine the bundle. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Which option to use to copy the source files to the docker container and output files back. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.commandHooks">commandHooks</a></code> | <code><a href="#uv-python-lambda.ICommandHooks">ICommandHooks</a></code> | Command hooks. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | Custom builder image to use for bundling. |
@@ -1406,6 +1408,45 @@ This is not used if a custom image is provided.
 
 ---
 
+##### `bundleCacheDir`<sup>Optional</sup> <a name="bundleCacheDir" id="uv-python-lambda.BundlingOptions.property.bundleCacheDir"></a>
+
+```typescript
+public readonly bundleCacheDir: string;
+```
+
+- *Type:* string
+- *Default:* no cache
+
+Directory for a content-addressed cache of bundled archives.
+
+With a cache directory, a bundle whose inputs have not changed is copied
+from the cache instead of rebuilt, and no builder container starts. The key
+covers the workspace package, the local workspace members that it depends
+on, the lock entries of its dependencies, and the builder settings. A change
+to any other part of the repository leaves the key unchanged. Restore the
+directory between CI runs to share it.
+
+Without a `uv.lock` or a resolvable `workspacePackage`, the bundle is built
+without the cache.
+
+---
+
+##### `bundleCacheInputs`<sup>Optional</sup> <a name="bundleCacheInputs" id="uv-python-lambda.BundlingOptions.property.bundleCacheInputs"></a>
+
+```typescript
+public readonly bundleCacheInputs: string[];
+```
+
+- *Type:* string[]
+- *Default:* none
+
+Paths relative to `rootDir` that also determine the bundle.
+
+Use this for files outside the dependency closure that the build or the
+command hooks read. It applies only with `bundleCacheDir`.
+
+---
+
 ##### `bundlingFileAccess`<sup>Optional</sup> <a name="bundlingFileAccess" id="uv-python-lambda.BundlingOptions.property.bundlingFileAccess"></a>
 
 ```typescript
@@ -1509,6 +1550,8 @@ const bundlingProps: BundlingProps = { ... }
 | <code><a href="#uv-python-lambda.BundlingProps.property.assetHash">assetHash</a></code> | <code>string</code> | Specify a custom hash for this asset. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.assetHashType">assetHashType</a></code> | <code>aws-cdk-lib.AssetHashType</code> | Determines how asset hash is calculated. Assets will get rebuild and uploaded only if their hash has changed. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the default builder image. |
+| <code><a href="#uv-python-lambda.BundlingProps.property.bundleCacheDir">bundleCacheDir</a></code> | <code>string</code> | Directory for a content-addressed cache of bundled archives. |
+| <code><a href="#uv-python-lambda.BundlingProps.property.bundleCacheInputs">bundleCacheInputs</a></code> | <code>string[]</code> | Paths relative to `rootDir` that also determine the bundle. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Which option to use to copy the source files to the docker container and output files back. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.commandHooks">commandHooks</a></code> | <code><a href="#uv-python-lambda.ICommandHooks">ICommandHooks</a></code> | Command hooks. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | Custom builder image to use for bundling. |
@@ -1735,6 +1778,45 @@ This can be
 used to customize the index URLs used for installing dependencies, or to
 override `BUNDLING_IMAGE` with a different Python base image.
 This is not used if a custom image is provided.
+
+---
+
+##### `bundleCacheDir`<sup>Optional</sup> <a name="bundleCacheDir" id="uv-python-lambda.BundlingProps.property.bundleCacheDir"></a>
+
+```typescript
+public readonly bundleCacheDir: string;
+```
+
+- *Type:* string
+- *Default:* no cache
+
+Directory for a content-addressed cache of bundled archives.
+
+With a cache directory, a bundle whose inputs have not changed is copied
+from the cache instead of rebuilt, and no builder container starts. The key
+covers the workspace package, the local workspace members that it depends
+on, the lock entries of its dependencies, and the builder settings. A change
+to any other part of the repository leaves the key unchanged. Restore the
+directory between CI runs to share it.
+
+Without a `uv.lock` or a resolvable `workspacePackage`, the bundle is built
+without the cache.
+
+---
+
+##### `bundleCacheInputs`<sup>Optional</sup> <a name="bundleCacheInputs" id="uv-python-lambda.BundlingProps.property.bundleCacheInputs"></a>
+
+```typescript
+public readonly bundleCacheInputs: string[];
+```
+
+- *Type:* string[]
+- *Default:* none
+
+Paths relative to `rootDir` that also determine the bundle.
+
+Use this for files outside the dependency closure that the build or the
+command hooks read. It applies only with `bundleCacheDir`.
 
 ---
 

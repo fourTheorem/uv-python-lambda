@@ -58,10 +58,12 @@
     "constructs": "^10.3.0"
   },
   "dependencies": {
-    "object-hash": "^3.0.0"
+    "object-hash": "^3.0.0",
+    "smol-toml": "^1.9.1"
   },
   "bundledDependencies": [
-    "object-hash"
+    "object-hash",
+    "smol-toml"
   ],
   "keywords": [
     "cdk"
