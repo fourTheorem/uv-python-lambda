@@ -513,4 +513,57 @@ describe('Bundling', () => {
       }),
     );
   });
+
+  describe('builder key and the checkout path', () => {
+    const originalCdkOutdir = process.env.CDK_OUTDIR;
+
+    afterEach(() => {
+      if (originalCdkOutdir === undefined) {
+        // biome-ignore lint/performance/noDelete: assigning undefined sets the string "undefined"
+        delete process.env.CDK_OUTDIR;
+      } else {
+        process.env.CDK_OUTDIR = originalCdkOutdir;
+      }
+    });
+
+    const builderKey = (rootDir: string, cdkOutDir?: string) => {
+      if (cdkOutDir === undefined) {
+        // biome-ignore lint/performance/noDelete: assigning undefined sets the string "undefined"
+        delete process.env.CDK_OUTDIR;
+      } else {
+        process.env.CDK_OUTDIR = cdkOutDir;
+      }
+      return Reflect.get(
+        new Bundling({
+          rootDir,
+          runtime: Runtime.PYTHON_3_12,
+          architecture: Architecture.X86_64,
+          workspacePackage: 'app',
+        }),
+        'containerBuilderKey',
+      );
+    };
+
+    test('is the same for checkouts at different paths with the same layout', () => {
+      expect(
+        builderKey('/run/src111/repo', '/run/src111/repo/infra/tempo/cdk.out'),
+      ).toEqual(
+        builderKey('/run/src222/repo', '/run/src222/repo/infra/tempo/cdk.out'),
+      );
+    });
+
+    test('differs for roots at different places relative to the output', () => {
+      expect(
+        builderKey('/run/repo', '/run/repo/infra/tempo/cdk.out'),
+      ).not.toEqual(
+        builderKey('/run/repo/services', '/run/repo/infra/tempo/cdk.out'),
+      );
+    });
+
+    test('falls back to the absolute path without an output directory', () => {
+      expect(builderKey('/run/src111/repo')).not.toEqual(
+        builderKey('/run/src222/repo'),
+      );
+    });
+  });
 });

@@ -213,7 +213,7 @@ export class Bundling {
       runtime: props.runtime.name,
       architecture: props.architecture ?? Architecture.ARM_64,
       environment: getBuilderEnvironment(props.environment),
-      rootDir: path.resolve(props.rootDir),
+      rootDir: getKeyRootDir(props.rootDir),
       builderImage: props.image
         ? { image: props.image.image }
         : {
@@ -502,6 +502,24 @@ function getCdkOutDir() {
     throw new Error('CDK_OUTDIR must be set before bundling Lambda assets');
   }
   return path.resolve(cdkOutDir);
+}
+
+/**
+ * The root directory as the builder key sees it.
+ *
+ * The key names the output directory, and the construct records that path in
+ * the function's template metadata. An absolute path would change the template
+ * on every machine whose checkout path differs, such as a CI runner with a
+ * per-run working directory, and CloudFormation would update every function.
+ * Relative to the CDK output directory, the same repository layout gives the
+ * same key everywhere.
+ */
+function getKeyRootDir(rootDir: string) {
+  const resolved = path.resolve(rootDir);
+  const cdkOutDir = process.env.CDK_OUTDIR;
+  return cdkOutDir
+    ? toPosixPath(path.relative(path.resolve(cdkOutDir), resolved))
+    : resolved;
 }
 
 function sanitizeOutputComponent(value: string) {
