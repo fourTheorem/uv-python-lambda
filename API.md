@@ -43,6 +43,7 @@ new PythonFunction(scope: Construct, id: string, props: PythonFunctionProps)
 | **Name** | **Description** |
 | --- | --- |
 | <code><a href="#uv-python-lambda.PythonFunction.toString">toString</a></code> | Returns a string representation of this construct. |
+| <code><a href="#uv-python-lambda.PythonFunction.with">with</a></code> | Applies one or more mixins to this construct. |
 | <code><a href="#uv-python-lambda.PythonFunction.applyRemovalPolicy">applyRemovalPolicy</a></code> | Apply the given removal policy to this resource. |
 | <code><a href="#uv-python-lambda.PythonFunction.addEventSource">addEventSource</a></code> | Adds an event source to this function. |
 | <code><a href="#uv-python-lambda.PythonFunction.addEventSourceMapping">addEventSourceMapping</a></code> | Adds an event source that maps to this AWS Lambda function. |
@@ -75,6 +76,27 @@ public toString(): string
 ```
 
 Returns a string representation of this construct.
+
+##### `with` <a name="with" id="uv-python-lambda.PythonFunction.with"></a>
+
+```typescript
+public with(mixins: ...IMixin[]): IConstruct
+```
+
+Applies one or more mixins to this construct.
+
+Mixins are applied in order. The list of constructs is captured at the
+start of the call, so constructs added by a mixin will not be visited.
+Use multiple `with()` calls if subsequent mixins should apply to added
+constructs.
+
+###### `mixins`<sup>Required</sup> <a name="mixins" id="uv-python-lambda.PythonFunction.with.parameter.mixins"></a>
+
+- *Type:* ...constructs.IMixin[]
+
+The mixins to apply.
+
+---
 
 ##### `applyRemovalPolicy` <a name="applyRemovalPolicy" id="uv-python-lambda.PythonFunction.applyRemovalPolicy"></a>
 
@@ -1128,6 +1150,13 @@ The timeout configured for this lambda.
 
 Options for bundling.
 
+This construct applies `environment`, `user`, `volumes`, `volumesFrom`,
+`network`, and `securityOpt` to its reusable builder container.
+
+The inherited `entrypoint`, `command`, `workingDirectory`, and `platform`
+options do not fit this builder-container model and are ignored with a
+deprecation warning at runtime.
+
 #### Initializer <a name="Initializer" id="uv-python-lambda.BundlingOptions.Initializer"></a>
 
 ```typescript
@@ -1153,11 +1182,14 @@ const bundlingOptions: BundlingOptions = { ... }
 | <code><a href="#uv-python-lambda.BundlingOptions.property.assetExcludes">assetExcludes</a></code> | <code>string[]</code> | List of file patterns to exclude when copying assets from source for bundling. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.assetHash">assetHash</a></code> | <code>string</code> | Specify a custom hash for this asset. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.assetHashType">assetHashType</a></code> | <code>aws-cdk-lib.AssetHashType</code> | Determines how asset hash is calculated. Assets will get rebuild and uploaded only if their hash has changed. |
-| <code><a href="#uv-python-lambda.BundlingOptions.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the default container. |
+| <code><a href="#uv-python-lambda.BundlingOptions.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the default builder image. |
+| <code><a href="#uv-python-lambda.BundlingOptions.property.bundleCacheDir">bundleCacheDir</a></code> | <code>string</code> | Directory for a content-addressed cache of bundled archives. |
+| <code><a href="#uv-python-lambda.BundlingOptions.property.bundleCacheInputs">bundleCacheInputs</a></code> | <code>string[]</code> | Paths relative to `rootDir` that also determine the bundle. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Which option to use to copy the source files to the docker container and output files back. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.commandHooks">commandHooks</a></code> | <code><a href="#uv-python-lambda.ICommandHooks">ICommandHooks</a></code> | Command hooks. |
-| <code><a href="#uv-python-lambda.BundlingOptions.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | Docker image to use for bundling. |
+| <code><a href="#uv-python-lambda.BundlingOptions.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | Custom builder image to use for bundling. |
 | <code><a href="#uv-python-lambda.BundlingOptions.property.outputPathSuffix">outputPathSuffix</a></code> | <code>string</code> | Output path suffix: the suffix for the directory into which the bundled output is written. |
+| <code><a href="#uv-python-lambda.BundlingOptions.property.uvVersion">uvVersion</a></code> | <code>string</code> | uv version to install in the builder image. |
 
 ---
 
@@ -1367,11 +1399,51 @@ public readonly buildArgs: {[ key: string ]: string};
 - *Type:* {[ key: string ]: string}
 - *Default:* No build arguments.
 
-Optional build arguments to pass to the default container.
+Optional build arguments to pass to the default builder image.
 
-This can be used to customize
-the index URLs used for installing dependencies.
+This can be
+used to customize the index URLs used for installing dependencies, or to
+override `BUNDLING_IMAGE` with a different Python base image.
 This is not used if a custom image is provided.
+
+---
+
+##### `bundleCacheDir`<sup>Optional</sup> <a name="bundleCacheDir" id="uv-python-lambda.BundlingOptions.property.bundleCacheDir"></a>
+
+```typescript
+public readonly bundleCacheDir: string;
+```
+
+- *Type:* string
+- *Default:* no cache
+
+Directory for a content-addressed cache of bundled archives.
+
+With a cache directory, a bundle whose inputs have not changed is copied
+from the cache instead of rebuilt, and no builder container starts. The key
+covers the workspace package, the local workspace members that it depends
+on, the lock entries of its dependencies, and the builder settings. A change
+to any other part of the repository leaves the key unchanged. Restore the
+directory between CI runs to share it.
+
+Without a `uv.lock` or a resolvable `workspacePackage`, the bundle is built
+without the cache.
+
+---
+
+##### `bundleCacheInputs`<sup>Optional</sup> <a name="bundleCacheInputs" id="uv-python-lambda.BundlingOptions.property.bundleCacheInputs"></a>
+
+```typescript
+public readonly bundleCacheInputs: string[];
+```
+
+- *Type:* string[]
+- *Default:* none
+
+Paths relative to `rootDir` that also determine the bundle.
+
+Use this for files outside the dependency closure that the build or the
+command hooks read. It applies only with `bundleCacheDir`.
 
 ---
 
@@ -1408,13 +1480,16 @@ public readonly image: DockerImage;
 ```
 
 - *Type:* aws-cdk-lib.DockerImage
-- *Default:* Default bundling image.
+- *Default:* Build the library default builder image from `resources/`
 
-Docker image to use for bundling.
+Custom builder image to use for bundling.
 
-If no options are provided, the default bundling image
-will be used. Dependencies will be installed using the default packaging commands
-and copied over from into the Lambda asset.
+Use this for full control over the bundling environment. The image must
+include Python, `uv`, and the `/opt/uv-python-lambda` scripts expected by
+this library.
+
+To customize only the base image used by the default builder, prefer
+`buildArgs.BUNDLING_IMAGE`.
 
 ---
 
@@ -1428,6 +1503,22 @@ public readonly outputPathSuffix: string;
 - *Default:* 'python' for a layer, empty string otherwise.
 
 Output path suffix: the suffix for the directory into which the bundled output is written.
+
+---
+
+##### `uvVersion`<sup>Optional</sup> <a name="uvVersion" id="uv-python-lambda.BundlingOptions.property.uvVersion"></a>
+
+```typescript
+public readonly uvVersion: string;
+```
+
+- *Type:* string
+- *Default:* 0.5.27
+
+uv version to install in the builder image.
+
+It is best practice to pin this for reproducible builds. If omitted, the
+library default is used.
 
 ---
 
@@ -1458,11 +1549,14 @@ const bundlingProps: BundlingProps = { ... }
 | <code><a href="#uv-python-lambda.BundlingProps.property.assetExcludes">assetExcludes</a></code> | <code>string[]</code> | List of file patterns to exclude when copying assets from source for bundling. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.assetHash">assetHash</a></code> | <code>string</code> | Specify a custom hash for this asset. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.assetHashType">assetHashType</a></code> | <code>aws-cdk-lib.AssetHashType</code> | Determines how asset hash is calculated. Assets will get rebuild and uploaded only if their hash has changed. |
-| <code><a href="#uv-python-lambda.BundlingProps.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the default container. |
+| <code><a href="#uv-python-lambda.BundlingProps.property.buildArgs">buildArgs</a></code> | <code>{[ key: string ]: string}</code> | Optional build arguments to pass to the default builder image. |
+| <code><a href="#uv-python-lambda.BundlingProps.property.bundleCacheDir">bundleCacheDir</a></code> | <code>string</code> | Directory for a content-addressed cache of bundled archives. |
+| <code><a href="#uv-python-lambda.BundlingProps.property.bundleCacheInputs">bundleCacheInputs</a></code> | <code>string[]</code> | Paths relative to `rootDir` that also determine the bundle. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | Which option to use to copy the source files to the docker container and output files back. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.commandHooks">commandHooks</a></code> | <code><a href="#uv-python-lambda.ICommandHooks">ICommandHooks</a></code> | Command hooks. |
-| <code><a href="#uv-python-lambda.BundlingProps.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | Docker image to use for bundling. |
+| <code><a href="#uv-python-lambda.BundlingProps.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | Custom builder image to use for bundling. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.outputPathSuffix">outputPathSuffix</a></code> | <code>string</code> | Output path suffix: the suffix for the directory into which the bundled output is written. |
+| <code><a href="#uv-python-lambda.BundlingProps.property.uvVersion">uvVersion</a></code> | <code>string</code> | uv version to install in the builder image. |
 | <code><a href="#uv-python-lambda.BundlingProps.property.rootDir">rootDir</a></code> | <code>string</code> | uv project root (workspace root). |
 | <code><a href="#uv-python-lambda.BundlingProps.property.runtime">runtime</a></code> | <code>aws-cdk-lib.aws_lambda.Runtime</code> | Lambda runtime (must be one of the Python runtimes). |
 | <code><a href="#uv-python-lambda.BundlingProps.property.architecture">architecture</a></code> | <code>aws-cdk-lib.aws_lambda.Architecture</code> | Lambda CPU architecture. |
@@ -1678,11 +1772,51 @@ public readonly buildArgs: {[ key: string ]: string};
 - *Type:* {[ key: string ]: string}
 - *Default:* No build arguments.
 
-Optional build arguments to pass to the default container.
+Optional build arguments to pass to the default builder image.
 
-This can be used to customize
-the index URLs used for installing dependencies.
+This can be
+used to customize the index URLs used for installing dependencies, or to
+override `BUNDLING_IMAGE` with a different Python base image.
 This is not used if a custom image is provided.
+
+---
+
+##### `bundleCacheDir`<sup>Optional</sup> <a name="bundleCacheDir" id="uv-python-lambda.BundlingProps.property.bundleCacheDir"></a>
+
+```typescript
+public readonly bundleCacheDir: string;
+```
+
+- *Type:* string
+- *Default:* no cache
+
+Directory for a content-addressed cache of bundled archives.
+
+With a cache directory, a bundle whose inputs have not changed is copied
+from the cache instead of rebuilt, and no builder container starts. The key
+covers the workspace package, the local workspace members that it depends
+on, the lock entries of its dependencies, and the builder settings. A change
+to any other part of the repository leaves the key unchanged. Restore the
+directory between CI runs to share it.
+
+Without a `uv.lock` or a resolvable `workspacePackage`, the bundle is built
+without the cache.
+
+---
+
+##### `bundleCacheInputs`<sup>Optional</sup> <a name="bundleCacheInputs" id="uv-python-lambda.BundlingProps.property.bundleCacheInputs"></a>
+
+```typescript
+public readonly bundleCacheInputs: string[];
+```
+
+- *Type:* string[]
+- *Default:* none
+
+Paths relative to `rootDir` that also determine the bundle.
+
+Use this for files outside the dependency closure that the build or the
+command hooks read. It applies only with `bundleCacheDir`.
 
 ---
 
@@ -1719,13 +1853,16 @@ public readonly image: DockerImage;
 ```
 
 - *Type:* aws-cdk-lib.DockerImage
-- *Default:* Default bundling image.
+- *Default:* Build the library default builder image from `resources/`
 
-Docker image to use for bundling.
+Custom builder image to use for bundling.
 
-If no options are provided, the default bundling image
-will be used. Dependencies will be installed using the default packaging commands
-and copied over from into the Lambda asset.
+Use this for full control over the bundling environment. The image must
+include Python, `uv`, and the `/opt/uv-python-lambda` scripts expected by
+this library.
+
+To customize only the base image used by the default builder, prefer
+`buildArgs.BUNDLING_IMAGE`.
 
 ---
 
@@ -1739,6 +1876,22 @@ public readonly outputPathSuffix: string;
 - *Default:* 'python' for a layer, empty string otherwise.
 
 Output path suffix: the suffix for the directory into which the bundled output is written.
+
+---
+
+##### `uvVersion`<sup>Optional</sup> <a name="uvVersion" id="uv-python-lambda.BundlingProps.property.uvVersion"></a>
+
+```typescript
+public readonly uvVersion: string;
+```
+
+- *Type:* string
+- *Default:* 0.5.27
+
+uv version to install in the builder image.
+
+It is best practice to pin this for reproducible builds. If omitted, the
+library default is used.
 
 ---
 
@@ -2783,7 +2936,7 @@ Bundling.bundle(options: BundlingProps)
 
 | **Name** | **Type** | **Description** |
 | --- | --- | --- |
-| <code><a href="#uv-python-lambda.Bundling.property.image">image</a></code> | <code>aws-cdk-lib.DockerImage</code> | *No description.* |
+| <code><a href="#uv-python-lambda.Bundling.property.skip">skip</a></code> | <code>boolean</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.bundlingFileAccess">bundlingFileAccess</a></code> | <code>aws-cdk-lib.BundlingFileAccess</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.command">command</a></code> | <code>string[]</code> | *No description.* |
 | <code><a href="#uv-python-lambda.Bundling.property.entrypoint">entrypoint</a></code> | <code>string[]</code> | *No description.* |
@@ -2797,13 +2950,13 @@ Bundling.bundle(options: BundlingProps)
 
 ---
 
-##### `image`<sup>Required</sup> <a name="image" id="uv-python-lambda.Bundling.property.image"></a>
+##### `skip`<sup>Required</sup> <a name="skip" id="uv-python-lambda.Bundling.property.skip"></a>
 
 ```typescript
-public readonly image: DockerImage;
+public readonly skip: boolean;
 ```
 
-- *Type:* aws-cdk-lib.DockerImage
+- *Type:* boolean
 
 ---
 

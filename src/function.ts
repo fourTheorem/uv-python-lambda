@@ -1,4 +1,3 @@
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Stack } from 'aws-cdk-lib';
 import {
@@ -80,7 +79,7 @@ export class PythonFunction extends Function {
     const code = Bundling.bundle({
       rootDir,
       runtime,
-      skip: skip,
+      skip,
       architecture,
       workspacePackage,
       ...props.bundling,
@@ -96,46 +95,18 @@ export class PythonFunction extends Function {
       code,
       handler: resolvedHandler,
     });
-
-    if (skip) {
-      return;
-    }
-
-    const assetPath = (this.node.defaultChild as CfnFunction).getMetadata(
-      'aws:asset:path',
+    const assetRelPath = path.relative(getCdkOutDir(), code.path);
+    (this.node.defaultChild as CfnFunction).addMetadata(
+      'uv-python-lambda:asset-path',
+      assetRelPath,
     );
-    if (!assetPath) {
-      return;
-    }
-
-    const codePath = path.join(process.env.CDK_OUTDIR as string, assetPath);
-    const pythonPaths = getPthFilePaths(codePath);
-
-    if (pythonPaths.length > 0) {
-      let pythonPathValue = environment.PYTHONPATH;
-      const addedPaths = pythonPaths.join(':');
-      pythonPathValue = pythonPathValue
-        ? `${pythonPathValue}:${addedPaths}`
-        : addedPaths;
-      this.addEnvironment('PYTHONPATH', pythonPathValue);
-    }
   }
 }
 
-function getPthFilePaths(basePath: string): string[] {
-  const pthFiles = fs
-    .readdirSync(basePath)
-    .filter((file) => file.endsWith('.pth'));
-  const pythonPaths: string[] = [];
-  for (const pthFile of pthFiles) {
-    const filePath = path.join(basePath, pthFile);
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const dirs = content.split('\n').filter((line) => line.trim() !== '');
-    pythonPaths.push(
-      ...dirs.map((dir) =>
-        path.join('/var/task', path.relative('/asset-output', dir)),
-      ),
-    );
+function getCdkOutDir() {
+  const cdkOutDir = process.env.CDK_OUTDIR;
+  if (!cdkOutDir) {
+    throw new Error('CDK_OUTDIR must be set before bundling Lambda assets');
   }
-  return pythonPaths;
+  return path.resolve(cdkOutDir);
 }
